@@ -1,0 +1,37 @@
+name: Test custom footer
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create test directory
+        run: |
+          mkdir -p /tmp/test-footer
+          echo "content" > /tmp/test-footer/sample.txt
+
+      - id: action
+        uses: .
+        with:
+          target: /tmp/test-footer
+          footer: 'My Custom Footer Text 12345'
+
+      - name: Assert index.html was generated
+        run: |
+          if [ ! -f "/tmp/test-footer/index.html" ]; then
+            echo "FAIL: expected /tmp/test-footer/index.html to exist"
+            exit 1
+          fi
+          echo "PASS: index.html exists"
+
+      - name: Assert custom footer is present in index.html
+        run: |
+          echo "Contents of index.html:"
+          cat /tmp/test-footer/index.html
+          if ! grep -q "My Custom Footer Text 12345" /tmp/test-footer/index.html; then
+            echo "FAIL: index.html should contain the custom footer text"
+            exit 1
+          fi
+          echo "PASS: custom footer is present in index.html"

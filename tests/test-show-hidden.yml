@@ -1,0 +1,48 @@
+name: Test show hidden files
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create test directory with hidden files
+        run: |
+          mkdir -p /tmp/test-hidden
+          echo "visible" > /tmp/test-hidden/visible.txt
+          echo "hidden" > /tmp/test-hidden/.hidden-file
+          mkdir -p /tmp/test-hidden/.hidden-dir
+          echo "in hidden dir" > /tmp/test-hidden/.hidden-dir/file.txt
+
+      - id: action-with-hidden
+        uses: .
+        with:
+          target: /tmp/test-hidden
+          show-hidden: 'true'
+
+      - name: Assert index.html was generated
+        run: |
+          if [ ! -f "/tmp/test-hidden/index.html" ]; then
+            echo "FAIL: expected /tmp/test-hidden/index.html to exist"
+            exit 1
+          fi
+          echo "PASS: index.html exists"
+
+      - name: Assert hidden file is listed when show-hidden is true
+        run: |
+          echo "Contents of index.html:"
+          cat /tmp/test-hidden/index.html
+          if ! grep -q "\.hidden-file" /tmp/test-hidden/index.html; then
+            echo "FAIL: index.html should reference .hidden-file when show-hidden=true"
+            exit 1
+          fi
+          echo "PASS: hidden file is listed"
+
+      - name: Assert visible file is listed
+        run: |
+          if ! grep -q "visible.txt" /tmp/test-hidden/index.html; then
+            echo "FAIL: index.html should reference visible.txt"
+            exit 1
+          fi
+          echo "PASS: visible file is listed"

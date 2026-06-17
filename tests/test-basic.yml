@@ -1,0 +1,56 @@
+name: Test basic directory listing
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create test directory structure
+        run: |
+          mkdir -p /tmp/test-listing/subdir
+          echo "hello" > /tmp/test-listing/file1.txt
+          echo "world" > /tmp/test-listing/file2.txt
+          echo "nested" > /tmp/test-listing/subdir/nested.txt
+
+      - id: action
+        uses: .
+        with:
+          target: /tmp/test-listing
+
+      - name: Assert index.html was generated
+        env:
+          GENERATED: ${{ steps.action.outputs.generated }}
+        run: |
+          echo "generated: $GENERATED"
+          if [ ! -f "/tmp/test-listing/index.html" ]; then
+            echo "FAIL: expected /tmp/test-listing/index.html to exist"
+            exit 1
+          fi
+          echo "PASS: index.html exists"
+
+      - name: Assert index.html contains file references
+        run: |
+          echo "Contents of index.html:"
+          cat /tmp/test-listing/index.html
+          if ! grep -q "file1.txt" /tmp/test-listing/index.html; then
+            echo "FAIL: index.html does not reference file1.txt"
+            exit 1
+          fi
+          if ! grep -q "file2.txt" /tmp/test-listing/index.html; then
+            echo "FAIL: index.html does not reference file2.txt"
+            exit 1
+          fi
+          echo "PASS: index.html contains expected file references"
+
+      - name: Assert generated output is non-empty
+        env:
+          GENERATED: ${{ steps.action.outputs.generated }}
+        run: |
+          echo "generated output: $GENERATED"
+          if [ -z "$GENERATED" ]; then
+            echo "FAIL: generated output should not be empty"
+            exit 1
+          fi
+          echo "PASS: generated output is non-empty"

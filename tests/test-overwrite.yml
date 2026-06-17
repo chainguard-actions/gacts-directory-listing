@@ -1,0 +1,56 @@
+name: Test overwrite behavior
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create test directory with existing index.html
+        run: |
+          mkdir -p /tmp/test-overwrite
+          echo "file1" > /tmp/test-overwrite/file1.txt
+          echo "ORIGINAL CONTENT - DO NOT OVERWRITE" > /tmp/test-overwrite/index.html
+
+      - id: action-no-overwrite
+        uses: .
+        with:
+          target: /tmp/test-overwrite
+          overwrite: 'false'
+
+      - name: Assert existing index.html was NOT overwritten
+        run: |
+          echo "Contents of index.html after action with overwrite=false:"
+          cat /tmp/test-overwrite/index.html
+          if ! grep -q "ORIGINAL CONTENT" /tmp/test-overwrite/index.html; then
+            echo "FAIL: index.html should not have been overwritten when overwrite=false"
+            exit 1
+          fi
+          echo "PASS: existing index.html was preserved"
+
+      - name: Create fresh test directory for overwrite=true test
+        run: |
+          mkdir -p /tmp/test-overwrite2
+          echo "file2" > /tmp/test-overwrite2/file2.txt
+          echo "ORIGINAL CONTENT - SHOULD BE OVERWRITTEN" > /tmp/test-overwrite2/index.html
+
+      - id: action-with-overwrite
+        uses: .
+        with:
+          target: /tmp/test-overwrite2
+          overwrite: 'true'
+
+      - name: Assert existing index.html WAS overwritten
+        run: |
+          echo "Contents of index.html after action with overwrite=true:"
+          cat /tmp/test-overwrite2/index.html
+          if grep -q "ORIGINAL CONTENT - SHOULD BE OVERWRITTEN" /tmp/test-overwrite2/index.html; then
+            echo "FAIL: index.html should have been overwritten when overwrite=true"
+            exit 1
+          fi
+          if ! grep -q "file2.txt" /tmp/test-overwrite2/index.html; then
+            echo "FAIL: new index.html should reference file2.txt"
+            exit 1
+          fi
+          echo "PASS: existing index.html was overwritten with new content"

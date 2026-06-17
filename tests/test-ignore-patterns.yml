@@ -1,0 +1,57 @@
+name: Test ignore patterns
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create test directory structure with files to ignore
+        run: |
+          mkdir -p /tmp/test-ignore/node_modules/some-pkg
+          mkdir -p /tmp/test-ignore/logs
+          echo "keep me" > /tmp/test-ignore/keep.txt
+          echo "ignore me" > /tmp/test-ignore/debug.log
+          echo "pkg file" > /tmp/test-ignore/node_modules/some-pkg/index.js
+          echo "log file" > /tmp/test-ignore/logs/app.log
+
+      - id: action
+        uses: .
+        with:
+          target: /tmp/test-ignore
+          ignore: "node_modules/**,**/*.log"
+
+      - name: Assert index.html was generated
+        run: |
+          if [ ! -f "/tmp/test-ignore/index.html" ]; then
+            echo "FAIL: expected /tmp/test-ignore/index.html to exist"
+            exit 1
+          fi
+          echo "PASS: index.html exists"
+
+      - name: Assert ignored files are not listed
+        run: |
+          echo "Contents of index.html:"
+          cat /tmp/test-ignore/index.html
+          if grep -q "debug.log" /tmp/test-ignore/index.html; then
+            echo "FAIL: index.html should not reference debug.log (matched by **/*.log)"
+            exit 1
+          fi
+          echo "PASS: ignored files are not listed"
+
+      - name: Assert kept files are listed
+        run: |
+          if ! grep -q "keep.txt" /tmp/test-ignore/index.html; then
+            echo "FAIL: index.html should reference keep.txt"
+            exit 1
+          fi
+          echo "PASS: non-ignored files are listed"
+
+      - name: Assert node_modules directory is not listed
+        run: |
+          if grep -q "node_modules" /tmp/test-ignore/index.html; then
+            echo "FAIL: index.html should not reference node_modules (ignored)"
+            exit 1
+          fi
+          echo "PASS: node_modules directory is not listed"
