@@ -1,0 +1,69 @@
+name: Test overwrite option
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create test directory with existing index.html
+        run: |
+          mkdir -p /tmp/test-overwrite
+          echo "file1.txt content" > /tmp/test-overwrite/file1.txt
+          echo "ORIGINAL CONTENT - DO NOT OVERWRITE" > /tmp/test-overwrite/index.html
+
+      - name: Run action with overwrite false (default)
+        id: action-no-overwrite
+        uses: .
+        with:
+          target: /tmp/test-overwrite
+          overwrite: 'false'
+
+      - name: Assert existing index.html was NOT overwritten
+        run: |
+          CONTENT=$(cat /tmp/test-overwrite/index.html)
+          echo "content: $CONTENT"
+          if ! echo "$CONTENT" | grep -q "ORIGINAL CONTENT"; then
+            echo "FAIL: index.html should not have been overwritten"
+            exit 1
+          fi
+          echo "PASS: original index.html preserved"
+
+      - name: Create fresh test directory for overwrite=true test
+        run: |
+          mkdir -p /tmp/test-overwrite2
+          echo "file2.txt content" > /tmp/test-overwrite2/file2.txt
+          echo "OLD CONTENT" > /tmp/test-overwrite2/index.html
+
+      - name: Run action with overwrite true
+        id: action-overwrite
+        uses: .
+        with:
+          target: /tmp/test-overwrite2
+          overwrite: 'true'
+
+      - name: Assert generated output is set for overwrite run
+        env:
+          ACTUAL: ${{ steps.action-overwrite.outputs.generated }}
+        run: |
+          echo "actual: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected 'generated' output to be non-empty"
+            exit 1
+          fi
+          echo "PASS"
+
+      - name: Assert index.html was overwritten with new content
+        run: |
+          CONTENT=$(cat /tmp/test-overwrite2/index.html)
+          echo "content: $CONTENT"
+          if echo "$CONTENT" | grep -q "OLD CONTENT"; then
+            echo "FAIL: index.html should have been overwritten"
+            exit 1
+          fi
+          if ! grep -q "file2.txt" /tmp/test-overwrite2/index.html; then
+            echo "FAIL: new index.html should contain 'file2.txt'"
+            exit 1
+          fi
+          echo "PASS: index.html was overwritten with new content"

@@ -1,0 +1,47 @@
+name: Test basic directory listing
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create test directory structure
+        run: |
+          mkdir -p /tmp/test-listing/subdir
+          echo "hello" > /tmp/test-listing/hello.txt
+          echo "world" > /tmp/test-listing/subdir/world.txt
+
+      - id: action
+        uses: .
+        with:
+          target: /tmp/test-listing
+
+      - name: Assert generated output is set
+        env:
+          ACTUAL: ${{ steps.action.outputs.generated }}
+        run: |
+          echo "actual: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected 'generated' output to be non-empty"
+            exit 1
+          fi
+          echo "PASS: generated output = $ACTUAL"
+
+      - name: Assert index.html was created in target directory
+        run: |
+          if [ ! -f /tmp/test-listing/index.html ]; then
+            echo "FAIL: expected /tmp/test-listing/index.html to exist"
+            exit 1
+          fi
+          echo "PASS: index.html exists"
+          cat /tmp/test-listing/index.html
+
+      - name: Assert index.html contains expected file links
+        run: |
+          if ! grep -q "hello.txt" /tmp/test-listing/index.html; then
+            echo "FAIL: expected index.html to contain 'hello.txt'"
+            exit 1
+          fi
+          echo "PASS: index.html contains hello.txt"
