@@ -1,0 +1,57 @@
+name: Test overwrite behavior
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create test directory with existing index.html
+        run: |
+          mkdir -p /tmp/test-overwrite
+          echo "file1" > /tmp/test-overwrite/file1.txt
+          echo "ORIGINAL CONTENT - DO NOT OVERWRITE" > /tmp/test-overwrite/index.html
+
+      - name: Run action with overwrite disabled (default)
+        id: action-no-overwrite
+        uses: .
+        with:
+          target: /tmp/test-overwrite
+          overwrite: 'false'
+
+      - name: Assert existing index.html was NOT overwritten
+        run: |
+          CONTENT=$(cat /tmp/test-overwrite/index.html)
+          echo "content: $CONTENT"
+          if ! echo "$CONTENT" | grep -q "ORIGINAL CONTENT"; then
+            echo "FAIL: existing index.html should not have been overwritten"
+            exit 1
+          fi
+          echo "PASS: original index.html preserved"
+
+      - name: Run action with overwrite enabled
+        id: action-overwrite
+        uses: .
+        with:
+          target: /tmp/test-overwrite
+          overwrite: 'true'
+
+      - name: Assert index.html was overwritten
+        run: |
+          CONTENT=$(cat /tmp/test-overwrite/index.html)
+          echo "content: $CONTENT"
+          if echo "$CONTENT" | grep -q "ORIGINAL CONTENT"; then
+            echo "FAIL: index.html should have been overwritten but still contains original content"
+            exit 1
+          fi
+          echo "PASS: index.html was overwritten"
+
+      - name: Assert overwritten index.html contains file listing
+        run: |
+          if ! grep -q "file1.txt" /tmp/test-overwrite/index.html; then
+            echo "FAIL: expected file1.txt to appear in overwritten index.html"
+            cat /tmp/test-overwrite/index.html
+            exit 1
+          fi
+          echo "PASS: file1.txt found in overwritten index.html"

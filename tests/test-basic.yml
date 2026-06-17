@@ -1,0 +1,55 @@
+name: Test basic directory listing
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create test directory structure
+        run: |
+          mkdir -p /tmp/test-listing/subdir
+          echo "hello" > /tmp/test-listing/hello.txt
+          echo "world" > /tmp/test-listing/subdir/world.txt
+
+      - id: action
+        uses: .
+        with:
+          target: /tmp/test-listing
+
+      - name: Assert index.html was generated at root
+        run: |
+          if [ ! -f "/tmp/test-listing/index.html" ]; then
+            echo "FAIL: expected /tmp/test-listing/index.html to exist"
+            exit 1
+          fi
+          echo "PASS: root index.html exists"
+
+      - name: Assert index.html was generated in subdir
+        run: |
+          if [ ! -f "/tmp/test-listing/subdir/index.html" ]; then
+            echo "FAIL: expected /tmp/test-listing/subdir/index.html to exist"
+            exit 1
+          fi
+          echo "PASS: subdir index.html exists"
+
+      - name: Assert root index.html contains hello.txt
+        run: |
+          if ! grep -q "hello.txt" /tmp/test-listing/index.html; then
+            echo "FAIL: expected hello.txt to appear in root index.html"
+            cat /tmp/test-listing/index.html
+            exit 1
+          fi
+          echo "PASS: hello.txt found in root index.html"
+
+      - name: Assert generated output is non-empty
+        env:
+          ACTUAL: ${{ steps.action.outputs.generated }}
+        run: |
+          echo "actual: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected generated output to be non-empty"
+            exit 1
+          fi
+          echo "PASS"
