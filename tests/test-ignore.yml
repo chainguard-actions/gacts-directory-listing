@@ -1,0 +1,58 @@
+name: Test ignore patterns
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create test directory structure
+        run: |
+          mkdir -p /tmp/test-ignore/logs
+          echo "hello" > /tmp/test-ignore/file1.txt
+          echo "log entry" > /tmp/test-ignore/app.log
+          echo "nested log" > /tmp/test-ignore/logs/debug.log
+
+      - id: action
+        uses: .
+        with:
+          target: /tmp/test-ignore
+          ignore: |
+            **/index.html
+            **/*.log
+            logs/**
+
+      - name: Assert root index.html was created
+        run: |
+          if [ ! -f "/tmp/test-ignore/index.html" ]; then
+            echo "FAIL: expected /tmp/test-ignore/index.html to exist"
+            exit 1
+          fi
+          echo "PASS"
+
+      - name: Assert ignored log files are not listed in index.html
+        run: |
+          if grep -q "app.log" /tmp/test-ignore/index.html; then
+            echo "FAIL: expected app.log to be excluded from index.html"
+            cat /tmp/test-ignore/index.html
+            exit 1
+          fi
+          echo "PASS"
+
+      - name: Assert non-ignored file is listed
+        run: |
+          if ! grep -q "file1.txt" /tmp/test-ignore/index.html; then
+            echo "FAIL: expected file1.txt to be listed in index.html"
+            cat /tmp/test-ignore/index.html
+            exit 1
+          fi
+          echo "PASS"
+
+      - name: Assert logs directory index.html was not created (ignored)
+        run: |
+          if [ -f "/tmp/test-ignore/logs/index.html" ]; then
+            echo "FAIL: expected logs/index.html to NOT exist (directory was ignored)"
+            exit 1
+          fi
+          echo "PASS"

@@ -1,0 +1,66 @@
+name: Test overwrite behavior
+on:
+  workflow_dispatch:
+jobs:
+  test-no-overwrite:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create test directory with existing index.html
+        run: |
+          mkdir -p /tmp/test-overwrite
+          echo "file1" > /tmp/test-overwrite/file1.txt
+          echo "EXISTING CONTENT" > /tmp/test-overwrite/index.html
+
+      - id: action-no-overwrite
+        uses: .
+        with:
+          target: /tmp/test-overwrite
+          overwrite: 'false'
+
+      - name: Assert existing index.html was NOT overwritten
+        run: |
+          CONTENT=$(cat /tmp/test-overwrite/index.html)
+          echo "content: $CONTENT"
+          if ! echo "$CONTENT" | grep -q "EXISTING CONTENT"; then
+            echo "FAIL: expected existing index.html to be preserved when overwrite=false"
+            exit 1
+          fi
+          echo "PASS"
+
+  test-overwrite:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create test directory with existing index.html
+        run: |
+          mkdir -p /tmp/test-overwrite2
+          echo "file1" > /tmp/test-overwrite2/file1.txt
+          echo "EXISTING CONTENT" > /tmp/test-overwrite2/index.html
+
+      - id: action-overwrite
+        uses: .
+        with:
+          target: /tmp/test-overwrite2
+          overwrite: 'true'
+
+      - name: Assert existing index.html WAS overwritten
+        run: |
+          CONTENT=$(cat /tmp/test-overwrite2/index.html)
+          echo "content: $CONTENT"
+          if echo "$CONTENT" | grep -q "EXISTING CONTENT"; then
+            echo "FAIL: expected existing index.html to be overwritten when overwrite=true"
+            exit 1
+          fi
+          echo "PASS"
+
+      - name: Assert new index.html contains file listing
+        run: |
+          if ! grep -q "file1.txt" /tmp/test-overwrite2/index.html; then
+            echo "FAIL: expected new index.html to contain file1.txt"
+            cat /tmp/test-overwrite2/index.html
+            exit 1
+          fi
+          echo "PASS"

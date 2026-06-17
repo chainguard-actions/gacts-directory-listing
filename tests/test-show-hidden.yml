@@ -1,0 +1,48 @@
+name: Test show hidden files
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create test directory structure with hidden files
+        run: |
+          mkdir -p /tmp/test-hidden
+          echo "visible" > /tmp/test-hidden/visible.txt
+          echo "hidden" > /tmp/test-hidden/.hidden-file
+          mkdir -p /tmp/test-hidden/.hidden-dir
+          echo "nested hidden" > /tmp/test-hidden/.hidden-dir/file.txt
+
+      - id: action
+        uses: .
+        with:
+          target: /tmp/test-hidden
+          show-hidden: 'true'
+
+      - name: Assert index.html was created
+        run: |
+          if [ ! -f "/tmp/test-hidden/index.html" ]; then
+            echo "FAIL: expected /tmp/test-hidden/index.html to exist"
+            exit 1
+          fi
+          echo "PASS"
+
+      - name: Assert hidden file is listed in index.html
+        run: |
+          if ! grep -q ".hidden-file" /tmp/test-hidden/index.html; then
+            echo "FAIL: expected .hidden-file to be listed in index.html when show-hidden=true"
+            cat /tmp/test-hidden/index.html
+            exit 1
+          fi
+          echo "PASS"
+
+      - name: Assert visible file is also listed
+        run: |
+          if ! grep -q "visible.txt" /tmp/test-hidden/index.html; then
+            echo "FAIL: expected visible.txt to be listed in index.html"
+            cat /tmp/test-hidden/index.html
+            exit 1
+          fi
+          echo "PASS"
