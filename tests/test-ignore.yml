@@ -1,0 +1,60 @@
+name: Test ignore patterns
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create test directory structure with log files
+        run: |
+          mkdir -p /tmp/test-ignore/logs
+          echo "important" > /tmp/test-ignore/important.txt
+          echo "log data" > /tmp/test-ignore/debug.log
+          echo "nested log" > /tmp/test-ignore/logs/app.log
+
+      - id: action
+        uses: .
+        with:
+          target: /tmp/test-ignore
+          ignore: '**/index.html,**/*.log'
+
+      - name: Assert index.html was created
+        run: |
+          if [ ! -f "/tmp/test-ignore/index.html" ]; then
+            echo "FAIL: expected /tmp/test-ignore/index.html to exist"
+            exit 1
+          fi
+          echo "PASS"
+
+      - name: Assert ignored log files are not listed in index.html
+        run: |
+          content=$(cat /tmp/test-ignore/index.html)
+          echo "index.html content:"
+          echo "$content"
+          if echo "$content" | grep -q "debug.log"; then
+            echo "FAIL: expected debug.log to be ignored and not appear in index.html"
+            exit 1
+          fi
+          echo "PASS"
+
+      - name: Assert non-ignored files are listed in index.html
+        run: |
+          content=$(cat /tmp/test-ignore/index.html)
+          if ! echo "$content" | grep -q "important.txt"; then
+            echo "FAIL: expected important.txt to appear in index.html"
+            exit 1
+          fi
+          echo "PASS"
+
+      - name: Assert generated output is non-empty
+        env:
+          GENERATED: ${{ steps.action.outputs.generated }}
+        run: |
+          echo "generated: $GENERATED"
+          if [ -z "$GENERATED" ]; then
+            echo "FAIL: expected generated output to be non-empty"
+            exit 1
+          fi
+          echo "PASS"

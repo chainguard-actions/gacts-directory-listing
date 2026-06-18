@@ -1,0 +1,62 @@
+name: Test basic directory listing
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create test directory structure
+        run: |
+          mkdir -p /tmp/test-listing/subdir
+          echo "hello" > /tmp/test-listing/file1.txt
+          echo "world" > /tmp/test-listing/file2.txt
+          echo "nested" > /tmp/test-listing/subdir/nested.txt
+
+      - id: action
+        uses: .
+        with:
+          target: /tmp/test-listing
+
+      - name: Assert generated output is non-empty
+        env:
+          GENERATED: ${{ steps.action.outputs.generated }}
+        run: |
+          echo "generated: $GENERATED"
+          if [ -z "$GENERATED" ]; then
+            echo "FAIL: expected generated output to be non-empty"
+            exit 1
+          fi
+          echo "PASS"
+
+      - name: Assert index.html was created in target directory
+        run: |
+          if [ ! -f "/tmp/test-listing/index.html" ]; then
+            echo "FAIL: expected /tmp/test-listing/index.html to exist"
+            exit 1
+          fi
+          echo "PASS"
+
+      - name: Assert index.html was created in subdirectory
+        run: |
+          if [ ! -f "/tmp/test-listing/subdir/index.html" ]; then
+            echo "FAIL: expected /tmp/test-listing/subdir/index.html to exist"
+            exit 1
+          fi
+          echo "PASS"
+
+      - name: Assert index.html contains file names
+        run: |
+          content=$(cat /tmp/test-listing/index.html)
+          echo "index.html content:"
+          echo "$content"
+          if ! echo "$content" | grep -q "file1.txt"; then
+            echo "FAIL: expected index.html to contain 'file1.txt'"
+            exit 1
+          fi
+          if ! echo "$content" | grep -q "file2.txt"; then
+            echo "FAIL: expected index.html to contain 'file2.txt'"
+            exit 1
+          fi
+          echo "PASS"

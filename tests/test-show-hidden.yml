@@ -1,0 +1,59 @@
+name: Test show-hidden behavior
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create test directory with hidden files
+        run: |
+          mkdir -p /tmp/test-show-hidden
+          echo "visible" > /tmp/test-show-hidden/visible.txt
+          echo "hidden" > /tmp/test-show-hidden/.hidden-file.txt
+
+      - id: action
+        uses: .
+        with:
+          target: /tmp/test-show-hidden
+          show-hidden: 'true'
+
+      - name: Assert index.html was created
+        run: |
+          if [ ! -f "/tmp/test-show-hidden/index.html" ]; then
+            echo "FAIL: expected /tmp/test-show-hidden/index.html to exist"
+            exit 1
+          fi
+          echo "PASS"
+
+      - name: Assert hidden file appears in index.html
+        run: |
+          content=$(cat /tmp/test-show-hidden/index.html)
+          echo "index.html content:"
+          echo "$content"
+          if ! echo "$content" | grep -q ".hidden-file.txt"; then
+            echo "FAIL: expected .hidden-file.txt to appear in index.html when show-hidden=true"
+            exit 1
+          fi
+          echo "PASS"
+
+      - name: Assert visible file also appears in index.html
+        run: |
+          content=$(cat /tmp/test-show-hidden/index.html)
+          if ! echo "$content" | grep -q "visible.txt"; then
+            echo "FAIL: expected visible.txt to appear in index.html"
+            exit 1
+          fi
+          echo "PASS"
+
+      - name: Assert generated output is non-empty
+        env:
+          GENERATED: ${{ steps.action.outputs.generated }}
+        run: |
+          echo "generated: $GENERATED"
+          if [ -z "$GENERATED" ]; then
+            echo "FAIL: expected generated output to be non-empty"
+            exit 1
+          fi
+          echo "PASS"

@@ -1,0 +1,51 @@
+name: Test overwrite behavior
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create test directory with existing index.html
+        run: |
+          mkdir -p /tmp/test-overwrite
+          echo "file1" > /tmp/test-overwrite/file1.txt
+          echo "OLD CONTENT THAT SHOULD BE REPLACED" > /tmp/test-overwrite/index.html
+
+      - id: action
+        uses: .
+        with:
+          target: /tmp/test-overwrite
+          overwrite: 'true'
+
+      - name: Assert existing index.html was overwritten
+        run: |
+          content=$(cat /tmp/test-overwrite/index.html)
+          echo "index.html content:"
+          echo "$content"
+          if echo "$content" | grep -q "OLD CONTENT THAT SHOULD BE REPLACED"; then
+            echo "FAIL: expected existing index.html to be overwritten but old content remains"
+            exit 1
+          fi
+          echo "PASS"
+
+      - name: Assert new index.html contains file listing
+        run: |
+          content=$(cat /tmp/test-overwrite/index.html)
+          if ! echo "$content" | grep -q "file1.txt"; then
+            echo "FAIL: expected new index.html to contain 'file1.txt'"
+            exit 1
+          fi
+          echo "PASS"
+
+      - name: Assert generated output is non-empty
+        env:
+          GENERATED: ${{ steps.action.outputs.generated }}
+        run: |
+          echo "generated: $GENERATED"
+          if [ -z "$GENERATED" ]; then
+            echo "FAIL: expected generated output to be non-empty"
+            exit 1
+          fi
+          echo "PASS"

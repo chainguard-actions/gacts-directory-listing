@@ -1,0 +1,31 @@
+name: Test no-overwrite behavior
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create test directory with existing index.html
+        run: |
+          mkdir -p /tmp/test-no-overwrite
+          echo "file1" > /tmp/test-no-overwrite/file1.txt
+          echo "EXISTING CONTENT - DO NOT OVERWRITE" > /tmp/test-no-overwrite/index.html
+
+      - id: action
+        uses: .
+        with:
+          target: /tmp/test-no-overwrite
+          overwrite: 'false'
+
+      - name: Assert existing index.html was not overwritten
+        run: |
+          content=$(cat /tmp/test-no-overwrite/index.html)
+          echo "index.html content:"
+          echo "$content"
+          if ! echo "$content" | grep -q "EXISTING CONTENT - DO NOT OVERWRITE"; then
+            echo "FAIL: expected existing index.html to be preserved (not overwritten)"
+            exit 1
+          fi
+          echo "PASS"
