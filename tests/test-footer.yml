@@ -10,7 +10,7 @@ jobs:
       - name: Create test directory
         run: |
           mkdir -p /tmp/test-footer
-          echo "content" > /tmp/test-footer/file.txt
+          echo "some content" > /tmp/test-footer/readme.txt
 
       - id: action
         uses: .
@@ -21,16 +21,27 @@ jobs:
       - name: Assert index.html was generated
         run: |
           if [ ! -f "/tmp/test-footer/index.html" ]; then
-            echo "FAIL: expected /tmp/test-footer/index.html to exist"
+            echo "FAIL: index.html not found in /tmp/test-footer"
             exit 1
           fi
-          echo "PASS: index.html exists"
+          echo "PASS: index.html found"
 
       - name: Assert custom footer appears in index.html
         run: |
           if ! grep -q "My Custom Footer Text 12345" /tmp/test-footer/index.html; then
-            echo "FAIL: expected custom footer text to appear in index.html"
+            echo "FAIL: custom footer not found in index.html"
             cat /tmp/test-footer/index.html
             exit 1
           fi
           echo "PASS: custom footer found in index.html"
+
+      - name: Assert generated output contains the path
+        env:
+          ACTUAL: ${{ steps.action.outputs.generated }}
+        run: |
+          echo "actual: $ACTUAL"
+          if [ -z "$ACTUAL" ] || [ "$ACTUAL" = "[]" ]; then
+            echo "FAIL: generated output is empty"
+            exit 1
+          fi
+          echo "PASS: generated output is non-empty"

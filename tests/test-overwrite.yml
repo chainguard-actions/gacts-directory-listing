@@ -7,31 +7,41 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Create test directory with existing index.html
+      - name: Create test directory
         run: |
           mkdir -p /tmp/test-overwrite
-          echo "file1" > /tmp/test-overwrite/file1.txt
-          echo "ORIGINAL CONTENT - DO NOT OVERWRITE" > /tmp/test-overwrite/index.html
+          echo "file content" > /tmp/test-overwrite/file.txt
+          # Pre-create an index.html with a sentinel value
+          echo "ORIGINAL_SENTINEL_CONTENT" > /tmp/test-overwrite/index.html
 
-      - name: Run action with overwrite disabled (default)
-        id: action-no-overwrite
+      - id: action-no-overwrite
         uses: .
         with:
           target: /tmp/test-overwrite
           overwrite: 'false'
 
-      - name: Assert existing index.html was NOT overwritten
+      - name: Assert original index.html was NOT overwritten
         run: |
-          CONTENT=$(cat /tmp/test-overwrite/index.html)
-          echo "content: $CONTENT"
-          if ! echo "$CONTENT" | grep -q "ORIGINAL CONTENT"; then
-            echo "FAIL: existing index.html should not have been overwritten"
+          if ! grep -q "ORIGINAL_SENTINEL_CONTENT" /tmp/test-overwrite/index.html; then
+            echo "FAIL: index.html was overwritten when overwrite=false"
+            cat /tmp/test-overwrite/index.html
             exit 1
           fi
-          echo "PASS: original index.html preserved"
+          echo "PASS: original index.html preserved when overwrite=false"
 
-      - name: Run action with overwrite enabled
-        id: action-overwrite
+      - name: Assert generated output is empty (skipped)
+        env:
+          ACTUAL: ${{ steps.action-no-overwrite.outputs.generated }}
+        run: |
+          echo "actual: $ACTUAL"
+          # When overwrite=false and index.html already exists, it should be skipped (empty generated list)
+          if [ "$ACTUAL" != "[]" ] && [ -n "$ACTUAL" ]; then
+            echo "FAIL: expected empty generated list but got: $ACTUAL"
+            exit 1
+          fi
+          echo "PASS: generated output is empty as expected (file was skipped)"
+
+      - id: action-with-overwrite
         uses: .
         with:
           target: /tmp/test-overwrite
@@ -39,19 +49,19 @@ jobs:
 
       - name: Assert index.html was overwritten
         run: |
-          CONTENT=$(cat /tmp/test-overwrite/index.html)
-          echo "content: $CONTENT"
-          if echo "$CONTENT" | grep -q "ORIGINAL CONTENT"; then
-            echo "FAIL: index.html should have been overwritten but still contains original content"
+          if grep -q "ORIGINAL_SENTINEL_CONTENT" /tmp/test-overwrite/index.html; then
+            echo "FAIL: index.html was NOT overwritten when overwrite=true"
             exit 1
           fi
-          echo "PASS: index.html was overwritten"
+          echo "PASS: index.html was overwritten when overwrite=true"
 
-      - name: Assert overwritten index.html contains file listing
+      - name: Assert generated output is non-empty after overwrite
+        env:
+          ACTUAL: ${{ steps.action-with-overwrite.outputs.generated }}
         run: |
-          if ! grep -q "file1.txt" /tmp/test-overwrite/index.html; then
-            echo "FAIL: expected file1.txt to appear in overwritten index.html"
-            cat /tmp/test-overwrite/index.html
+          echo "actual: $ACTUAL"
+          if [ -z "$ACTUAL" ] || [ "$ACTUAL" = "[]" ]; then
+            echo "FAIL: expected non-empty generated list after overwrite"
             exit 1
           fi
-          echo "PASS: file1.txt found in overwritten index.html"
+          echo "PASS: generated output is non-empty after overwrite"

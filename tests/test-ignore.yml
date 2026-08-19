@@ -7,49 +7,59 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Create test directory structure
+      - name: Create test directory with files to ignore
         run: |
-          mkdir -p /tmp/test-ignore/included
-          mkdir -p /tmp/test-ignore/excluded
-          echo "file1" > /tmp/test-ignore/file1.txt
-          echo "file2" > /tmp/test-ignore/included/file2.txt
-          echo "secret" > /tmp/test-ignore/excluded/secret.txt
+          mkdir -p /tmp/test-ignore/logs
+          mkdir -p /tmp/test-ignore/data
+          echo "keep me" > /tmp/test-ignore/keep.txt
+          echo "ignore me" > /tmp/test-ignore/ignore-me.log
+          echo "log entry" > /tmp/test-ignore/logs/app.log
+          echo "data file" > /tmp/test-ignore/data/data.csv
 
       - id: action
         uses: .
         with:
           target: /tmp/test-ignore
-          ignore: '**/index.html,**/excluded/**'
+          ignore: '**/index.html,**/*.log,logs/**'
 
-      - name: Assert index.html was generated at root
+      - name: Assert index.html generated in root target
         run: |
           if [ ! -f "/tmp/test-ignore/index.html" ]; then
-            echo "FAIL: expected /tmp/test-ignore/index.html to exist"
+            echo "FAIL: index.html not found in /tmp/test-ignore"
             exit 1
           fi
-          echo "PASS: root index.html exists"
+          echo "PASS: index.html found in /tmp/test-ignore"
 
-      - name: Assert index.html was generated in included subdir
+      - name: Assert ignored log file is not listed in index.html
         run: |
-          if [ ! -f "/tmp/test-ignore/included/index.html" ]; then
-            echo "FAIL: expected /tmp/test-ignore/included/index.html to exist"
-            exit 1
-          fi
-          echo "PASS: included/index.html exists"
-
-      - name: Assert index.html was NOT generated in excluded subdir
-        run: |
-          if [ -f "/tmp/test-ignore/excluded/index.html" ]; then
-            echo "FAIL: /tmp/test-ignore/excluded/index.html should not exist"
-            exit 1
-          fi
-          echo "PASS: excluded/index.html correctly absent"
-
-      - name: Assert excluded directory is not listed in root index.html
-        run: |
-          if grep -q "secret.txt" /tmp/test-ignore/index.html; then
-            echo "FAIL: secret.txt should not appear in root index.html"
+          if grep -q "ignore-me.log" /tmp/test-ignore/index.html; then
+            echo "FAIL: ignored .log file appears in index.html"
             cat /tmp/test-ignore/index.html
             exit 1
           fi
-          echo "PASS: secret.txt not found in root index.html"
+          echo "PASS: ignored .log file not listed in index.html"
+
+      - name: Assert ignored logs directory has no index.html
+        run: |
+          if [ -f "/tmp/test-ignore/logs/index.html" ]; then
+            echo "FAIL: index.html was generated in ignored logs/ directory"
+            exit 1
+          fi
+          echo "PASS: no index.html in ignored logs/ directory"
+
+      - name: Assert non-ignored data directory has index.html
+        run: |
+          if [ ! -f "/tmp/test-ignore/data/index.html" ]; then
+            echo "FAIL: index.html not found in data/ directory"
+            exit 1
+          fi
+          echo "PASS: index.html found in data/ directory"
+
+      - name: Assert keep.txt is listed in index.html
+        run: |
+          if ! grep -q "keep.txt" /tmp/test-ignore/index.html; then
+            echo "FAIL: keep.txt not listed in index.html"
+            cat /tmp/test-ignore/index.html
+            exit 1
+          fi
+          echo "PASS: keep.txt listed in index.html"

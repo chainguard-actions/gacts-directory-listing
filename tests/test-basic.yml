@@ -9,39 +9,45 @@ jobs:
 
       - name: Create test directory structure
         run: |
-          mkdir -p /tmp/test-listing/subdir
-          echo "hello" > /tmp/test-listing/hello.txt
-          echo "world" > /tmp/test-listing/subdir/world.txt
+          mkdir -p /tmp/test-basic/subdir
+          echo "hello" > /tmp/test-basic/file1.txt
+          echo "world" > /tmp/test-basic/file2.txt
+          echo "nested" > /tmp/test-basic/subdir/nested.txt
 
       - id: action
         uses: .
         with:
-          target: /tmp/test-listing
+          target: /tmp/test-basic
 
-      - name: Assert index.html was generated at root
+      - name: Assert index.html generated in root target
         run: |
-          if [ ! -f "/tmp/test-listing/index.html" ]; then
-            echo "FAIL: expected /tmp/test-listing/index.html to exist"
+          if [ ! -f "/tmp/test-basic/index.html" ]; then
+            echo "FAIL: index.html not found in /tmp/test-basic"
             exit 1
           fi
-          echo "PASS: root index.html exists"
+          echo "PASS: index.html found in /tmp/test-basic"
 
-      - name: Assert index.html was generated in subdir
+      - name: Assert index.html generated in subdirectory
         run: |
-          if [ ! -f "/tmp/test-listing/subdir/index.html" ]; then
-            echo "FAIL: expected /tmp/test-listing/subdir/index.html to exist"
+          if [ ! -f "/tmp/test-basic/subdir/index.html" ]; then
+            echo "FAIL: index.html not found in /tmp/test-basic/subdir"
             exit 1
           fi
-          echo "PASS: subdir index.html exists"
+          echo "PASS: index.html found in /tmp/test-basic/subdir"
 
-      - name: Assert root index.html contains hello.txt
+      - name: Assert index.html contains file names
         run: |
-          if ! grep -q "hello.txt" /tmp/test-listing/index.html; then
-            echo "FAIL: expected hello.txt to appear in root index.html"
-            cat /tmp/test-listing/index.html
+          if ! grep -q "file1.txt" /tmp/test-basic/index.html; then
+            echo "FAIL: file1.txt not listed in index.html"
+            cat /tmp/test-basic/index.html
             exit 1
           fi
-          echo "PASS: hello.txt found in root index.html"
+          if ! grep -q "file2.txt" /tmp/test-basic/index.html; then
+            echo "FAIL: file2.txt not listed in index.html"
+            cat /tmp/test-basic/index.html
+            exit 1
+          fi
+          echo "PASS: files listed in index.html"
 
       - name: Assert generated output is non-empty
         env:
@@ -49,7 +55,7 @@ jobs:
         run: |
           echo "actual: $ACTUAL"
           if [ -z "$ACTUAL" ]; then
-            echo "FAIL: expected generated output to be non-empty"
+            echo "FAIL: generated output is empty"
             exit 1
           fi
-          echo "PASS"
+          echo "PASS: generated output is non-empty"

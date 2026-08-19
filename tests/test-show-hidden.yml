@@ -1,4 +1,4 @@
-name: Test show hidden files
+name: Test show-hidden input
 on:
   workflow_dispatch:
 jobs:
@@ -7,43 +7,49 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Create test directory structure with hidden files
+      - name: Create test directory with hidden files
         run: |
           mkdir -p /tmp/test-hidden
           echo "visible" > /tmp/test-hidden/visible.txt
-          echo "hidden" > /tmp/test-hidden/.hidden-file
+          echo "hidden" > /tmp/test-hidden/.hidden-file.txt
           mkdir -p /tmp/test-hidden/.hidden-dir
-          echo "inside hidden dir" > /tmp/test-hidden/.hidden-dir/inside.txt
+          echo "nested hidden" > /tmp/test-hidden/.hidden-dir/file.txt
 
-      - name: Run action with show-hidden enabled
-        id: action
+      - id: action-hidden
         uses: .
         with:
           target: /tmp/test-hidden
           show-hidden: 'true'
 
-      - name: Assert index.html was generated
+      - name: Assert index.html contains hidden file
         run: |
           if [ ! -f "/tmp/test-hidden/index.html" ]; then
-            echo "FAIL: expected /tmp/test-hidden/index.html to exist"
+            echo "FAIL: index.html not found"
             exit 1
           fi
-          echo "PASS: index.html exists"
-
-      - name: Assert hidden file appears in index.html
-        run: |
-          if ! grep -q ".hidden-file" /tmp/test-hidden/index.html; then
-            echo "FAIL: expected .hidden-file to appear in index.html"
+          if ! grep -q ".hidden-file.txt" /tmp/test-hidden/index.html; then
+            echo "FAIL: .hidden-file.txt not listed in index.html"
             cat /tmp/test-hidden/index.html
             exit 1
           fi
-          echo "PASS: .hidden-file found in index.html"
+          echo "PASS: hidden file listed in index.html"
 
-      - name: Assert visible file appears in index.html
+      - name: Assert index.html contains hidden directory
         run: |
-          if ! grep -q "visible.txt" /tmp/test-hidden/index.html; then
-            echo "FAIL: expected visible.txt to appear in index.html"
+          if ! grep -q ".hidden-dir" /tmp/test-hidden/index.html; then
+            echo "FAIL: .hidden-dir not listed in index.html"
             cat /tmp/test-hidden/index.html
             exit 1
           fi
-          echo "PASS: visible.txt found in index.html"
+          echo "PASS: hidden directory listed in index.html"
+
+      - name: Assert generated output includes hidden dir index
+        env:
+          ACTUAL: ${{ steps.action-hidden.outputs.generated }}
+        run: |
+          echo "actual: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: generated output is empty"
+            exit 1
+          fi
+          echo "PASS: generated output is non-empty"

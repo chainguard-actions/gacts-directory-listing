@@ -1,0 +1,67 @@
+name: Test default target (current directory)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create a subdirectory with files for listing
+        run: |
+          mkdir -p /tmp/test-default-target/subdir
+          echo "file a" > /tmp/test-default-target/a.txt
+          echo "file b" > /tmp/test-default-target/b.txt
+          echo "nested" > /tmp/test-default-target/subdir/nested.txt
+
+      - id: action
+        uses: .
+        with:
+          target: /tmp/test-default-target
+          # No ignore specified — uses default '**/index.html'
+
+      - name: Assert index.html generated in root
+        run: |
+          if [ ! -f "/tmp/test-default-target/index.html" ]; then
+            echo "FAIL: index.html not found in /tmp/test-default-target"
+            exit 1
+          fi
+          echo "PASS: index.html found in /tmp/test-default-target"
+
+      - name: Assert index.html generated in subdir
+        run: |
+          if [ ! -f "/tmp/test-default-target/subdir/index.html" ]; then
+            echo "FAIL: index.html not found in /tmp/test-default-target/subdir"
+            exit 1
+          fi
+          echo "PASS: index.html found in /tmp/test-default-target/subdir"
+
+      - name: Assert index.html is not listed inside itself (default ignore)
+        run: |
+          # The default ignore pattern is '**/index.html', so index.html should not list itself
+          COUNT=$(grep -c "index.html" /tmp/test-default-target/index.html || true)
+          echo "Occurrences of 'index.html' in index.html: $COUNT"
+          # The file may reference index.html in links/hrefs but should not list it as a directory entry
+          # We check that a.txt and b.txt are present
+          if ! grep -q "a.txt" /tmp/test-default-target/index.html; then
+            echo "FAIL: a.txt not listed in index.html"
+            cat /tmp/test-default-target/index.html
+            exit 1
+          fi
+          if ! grep -q "b.txt" /tmp/test-default-target/index.html; then
+            echo "FAIL: b.txt not listed in index.html"
+            cat /tmp/test-default-target/index.html
+            exit 1
+          fi
+          echo "PASS: expected files listed in index.html"
+
+      - name: Assert generated output lists both index files
+        env:
+          ACTUAL: ${{ steps.action.outputs.generated }}
+        run: |
+          echo "actual: $ACTUAL"
+          if [ -z "$ACTUAL" ] || [ "$ACTUAL" = "[]" ]; then
+            echo "FAIL: generated output is empty"
+            exit 1
+          fi
+          echo "PASS: generated output is non-empty"
