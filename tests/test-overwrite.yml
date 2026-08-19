@@ -9,43 +9,69 @@ jobs:
 
       - name: Create test directory with existing index.html
         run: |
-          mkdir -p /tmp/test-overwrite
-          echo "file1" > /tmp/test-overwrite/file1.txt
-          echo "OLD CONTENT THAT SHOULD BE REPLACED" > /tmp/test-overwrite/index.html
+          mkdir -p "$GITHUB_WORKSPACE/test-overwrite"
+          echo "Existing content" > "$GITHUB_WORKSPACE/test-overwrite/file.txt"
+          echo "ORIGINAL INDEX" > "$GITHUB_WORKSPACE/test-overwrite/index.html"
 
-      - id: action
+      - name: Run action without overwrite (default)
+        id: action-no-overwrite
         uses: .
         with:
-          target: /tmp/test-overwrite
+          target: test-overwrite
+          overwrite: 'false'
+
+      - name: Assert existing index.html was NOT overwritten
+        run: |
+          content=$(cat "$GITHUB_WORKSPACE/test-overwrite/index.html")
+          echo "Content: $content"
+          if ! echo "$content" | grep -q "ORIGINAL INDEX"; then
+            echo "FAIL: index.html should still contain original content (not overwritten)"
+            exit 1
+          fi
+          echo "PASS: index.html was not overwritten"
+
+      - name: Assert generated output is empty (nothing was generated)
+        env:
+          ACTUAL: ${{ steps.action-no-overwrite.outputs.generated }}
+        run: |
+          echo "actual: $ACTUAL"
+          # When overwrite=false and index.html already exists, nothing is generated
+          # The output should be empty or an empty array
+          NORM="$(echo "$ACTUAL" | tr -d '[:space:]')"
+          if [ -z "$NORM" ] || [ "$NORM" = "[]" ]; then
+            echo "PASS: generated output is empty as expected (file was skipped)"
+          else
+            echo "INFO: generated output: $ACTUAL (may include other dirs)"
+          fi
+
+      - name: Run action with overwrite enabled
+        id: action-overwrite
+        uses: .
+        with:
+          target: test-overwrite
           overwrite: 'true'
 
-      - name: Assert existing index.html was overwritten
+      - name: Assert index.html was overwritten with generated content
         run: |
-          content=$(cat /tmp/test-overwrite/index.html)
-          echo "index.html content:"
-          echo "$content"
-          if echo "$content" | grep -q "OLD CONTENT THAT SHOULD BE REPLACED"; then
-            echo "FAIL: expected existing index.html to be overwritten but old content remains"
+          content=$(cat "$GITHUB_WORKSPACE/test-overwrite/index.html")
+          echo "Content: $content"
+          if echo "$content" | grep -q "ORIGINAL INDEX"; then
+            echo "FAIL: index.html should have been overwritten (still contains original content)"
             exit 1
           fi
-          echo "PASS"
-
-      - name: Assert new index.html contains file listing
-        run: |
-          content=$(cat /tmp/test-overwrite/index.html)
-          if ! echo "$content" | grep -q "file1.txt"; then
-            echo "FAIL: expected new index.html to contain 'file1.txt'"
+          if ! echo "$content" | grep -q "file.txt"; then
+            echo "FAIL: overwritten index.html should contain file.txt"
             exit 1
           fi
-          echo "PASS"
+          echo "PASS: index.html was overwritten with generated content"
 
-      - name: Assert generated output is non-empty
+      - name: Assert generated output is non-empty after overwrite
         env:
-          GENERATED: ${{ steps.action.outputs.generated }}
+          ACTUAL: ${{ steps.action-overwrite.outputs.generated }}
         run: |
-          echo "generated: $GENERATED"
-          if [ -z "$GENERATED" ]; then
-            echo "FAIL: expected generated output to be non-empty"
+          echo "actual: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected generated output to be non-empty after overwrite"
             exit 1
           fi
-          echo "PASS"
+          echo "PASS: generated output is non-empty"

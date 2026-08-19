@@ -7,54 +7,74 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Create test directory structure with log files
+      - name: Create test directory with files to ignore
         run: |
-          mkdir -p /tmp/test-ignore/logs
-          echo "important" > /tmp/test-ignore/important.txt
-          echo "log data" > /tmp/test-ignore/debug.log
-          echo "nested log" > /tmp/test-ignore/logs/app.log
+          mkdir -p "$GITHUB_WORKSPACE/test-ignore/logs"
+          mkdir -p "$GITHUB_WORKSPACE/test-ignore/assets"
+          echo "Keep me" > "$GITHUB_WORKSPACE/test-ignore/keep.txt"
+          echo "Ignore me" > "$GITHUB_WORKSPACE/test-ignore/ignore.log"
+          echo "Log file" > "$GITHUB_WORKSPACE/test-ignore/logs/app.log"
+          echo "Asset file" > "$GITHUB_WORKSPACE/test-ignore/assets/style.css"
 
       - id: action
         uses: .
         with:
-          target: /tmp/test-ignore
-          ignore: '**/index.html,**/*.log'
+          target: test-ignore
+          ignore: |
+            **/index.html
+            **/*.log
+            test-ignore/logs/**
 
-      - name: Assert index.html was created
+      - name: Assert index.html was generated in test-ignore
         run: |
-          if [ ! -f "/tmp/test-ignore/index.html" ]; then
-            echo "FAIL: expected /tmp/test-ignore/index.html to exist"
+          if [ ! -f "$GITHUB_WORKSPACE/test-ignore/index.html" ]; then
+            echo "FAIL: expected test-ignore/index.html to be generated"
             exit 1
           fi
-          echo "PASS"
+          echo "PASS: test-ignore/index.html exists"
 
-      - name: Assert ignored log files are not listed in index.html
+      - name: Assert index.html does not contain ignored log file
         run: |
-          content=$(cat /tmp/test-ignore/index.html)
-          echo "index.html content:"
-          echo "$content"
-          if echo "$content" | grep -q "debug.log"; then
-            echo "FAIL: expected debug.log to be ignored and not appear in index.html"
+          content=$(cat "$GITHUB_WORKSPACE/test-ignore/index.html")
+          echo "Content: $content"
+          if echo "$content" | grep -q "ignore.log"; then
+            echo "FAIL: index.html should not contain ignore.log (matched by **/*.log)"
             exit 1
           fi
-          echo "PASS"
+          echo "PASS: index.html does not contain ignored log file"
 
-      - name: Assert non-ignored files are listed in index.html
+      - name: Assert index.html contains non-ignored file
         run: |
-          content=$(cat /tmp/test-ignore/index.html)
-          if ! echo "$content" | grep -q "important.txt"; then
-            echo "FAIL: expected important.txt to appear in index.html"
+          content=$(cat "$GITHUB_WORKSPACE/test-ignore/index.html")
+          if ! echo "$content" | grep -q "keep.txt"; then
+            echo "FAIL: index.html should contain keep.txt"
             exit 1
           fi
-          echo "PASS"
+          echo "PASS: index.html contains keep.txt"
+
+      - name: Assert logs directory index.html was not generated (directory ignored)
+        run: |
+          if [ -f "$GITHUB_WORKSPACE/test-ignore/logs/index.html" ]; then
+            echo "FAIL: test-ignore/logs/index.html should not have been generated (directory ignored)"
+            exit 1
+          fi
+          echo "PASS: test-ignore/logs/index.html was not generated"
+
+      - name: Assert assets directory index.html was generated (not ignored)
+        run: |
+          if [ ! -f "$GITHUB_WORKSPACE/test-ignore/assets/index.html" ]; then
+            echo "FAIL: expected test-ignore/assets/index.html to be generated"
+            exit 1
+          fi
+          echo "PASS: test-ignore/assets/index.html exists"
 
       - name: Assert generated output is non-empty
         env:
-          GENERATED: ${{ steps.action.outputs.generated }}
+          ACTUAL: ${{ steps.action.outputs.generated }}
         run: |
-          echo "generated: $GENERATED"
-          if [ -z "$GENERATED" ]; then
+          echo "actual: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
             echo "FAIL: expected generated output to be non-empty"
             exit 1
           fi
-          echo "PASS"
+          echo "PASS: generated output is non-empty"

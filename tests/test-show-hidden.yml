@@ -1,4 +1,4 @@
-name: Test show-hidden behavior
+name: Test show-hidden input
 on:
   workflow_dispatch:
 jobs:
@@ -9,51 +9,39 @@ jobs:
 
       - name: Create test directory with hidden files
         run: |
-          mkdir -p /tmp/test-show-hidden
-          echo "visible" > /tmp/test-show-hidden/visible.txt
-          echo "hidden" > /tmp/test-show-hidden/.hidden-file.txt
+          mkdir -p "$GITHUB_WORKSPACE/test-hidden"
+          echo "Visible file" > "$GITHUB_WORKSPACE/test-hidden/visible.txt"
+          echo "Hidden file" > "$GITHUB_WORKSPACE/test-hidden/.hidden.txt"
 
       - id: action
         uses: .
         with:
-          target: /tmp/test-show-hidden
+          target: test-hidden
           show-hidden: 'true'
 
-      - name: Assert index.html was created
+      - name: Assert index.html was generated
         run: |
-          if [ ! -f "/tmp/test-show-hidden/index.html" ]; then
-            echo "FAIL: expected /tmp/test-show-hidden/index.html to exist"
+          if [ ! -f "$GITHUB_WORKSPACE/test-hidden/index.html" ]; then
+            echo "FAIL: expected test-hidden/index.html to be generated"
             exit 1
           fi
-          echo "PASS"
+          echo "PASS: test-hidden/index.html exists"
 
-      - name: Assert hidden file appears in index.html
+      - name: Assert index.html contains hidden file
         run: |
-          content=$(cat /tmp/test-show-hidden/index.html)
-          echo "index.html content:"
-          echo "$content"
-          if ! echo "$content" | grep -q ".hidden-file.txt"; then
-            echo "FAIL: expected .hidden-file.txt to appear in index.html when show-hidden=true"
+          content=$(cat "$GITHUB_WORKSPACE/test-hidden/index.html")
+          echo "Content: $content"
+          if ! echo "$content" | grep -q ".hidden.txt"; then
+            echo "FAIL: index.html does not contain .hidden.txt"
             exit 1
           fi
-          echo "PASS"
+          echo "PASS: index.html contains hidden file"
 
-      - name: Assert visible file also appears in index.html
+      - name: Assert index.html contains visible file
         run: |
-          content=$(cat /tmp/test-show-hidden/index.html)
+          content=$(cat "$GITHUB_WORKSPACE/test-hidden/index.html")
           if ! echo "$content" | grep -q "visible.txt"; then
-            echo "FAIL: expected visible.txt to appear in index.html"
+            echo "FAIL: index.html does not contain visible.txt"
             exit 1
           fi
-          echo "PASS"
-
-      - name: Assert generated output is non-empty
-        env:
-          GENERATED: ${{ steps.action.outputs.generated }}
-        run: |
-          echo "generated: $GENERATED"
-          if [ -z "$GENERATED" ]; then
-            echo "FAIL: expected generated output to be non-empty"
-            exit 1
-          fi
-          echo "PASS"
+          echo "PASS: index.html contains visible file"

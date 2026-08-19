@@ -1,0 +1,58 @@
+name: Test default target (current directory)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create a subdirectory with files for listing
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/test-default-subdir"
+          echo "File A" > "$GITHUB_WORKSPACE/test-default-subdir/a.txt"
+          echo "File B" > "$GITHUB_WORKSPACE/test-default-subdir/b.txt"
+
+      - id: action
+        uses: .
+        with:
+          # Use default target (.) but ignore most things to avoid generating too many files
+          ignore: |
+            **/index.html
+            action/**
+            tests/**
+            .git/**
+            .github/**
+
+      - name: Assert index.html was generated in test-default-subdir
+        run: |
+          if [ ! -f "$GITHUB_WORKSPACE/test-default-subdir/index.html" ]; then
+            echo "FAIL: expected test-default-subdir/index.html to be generated"
+            exit 1
+          fi
+          echo "PASS: test-default-subdir/index.html exists"
+
+      - name: Assert index.html contains expected files
+        run: |
+          content=$(cat "$GITHUB_WORKSPACE/test-default-subdir/index.html")
+          echo "Content: $content"
+          if ! echo "$content" | grep -q "a.txt"; then
+            echo "FAIL: index.html does not contain a.txt"
+            exit 1
+          fi
+          if ! echo "$content" | grep -q "b.txt"; then
+            echo "FAIL: index.html does not contain b.txt"
+            exit 1
+          fi
+          echo "PASS: index.html contains expected files"
+
+      - name: Assert generated output is non-empty
+        env:
+          ACTUAL: ${{ steps.action.outputs.generated }}
+        run: |
+          echo "actual: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected generated output to be non-empty"
+            exit 1
+          fi
+          echo "PASS: generated output is non-empty"
