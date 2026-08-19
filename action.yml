@@ -3,9 +3,11 @@
 
 name: Directory Listing
 description: GitHub Action to generate `index.html` files for directory listings
+
 branding:
   icon: file-plus
   color: blue
+
 inputs:
   target:
     description: Path to the target directory
@@ -29,10 +31,12 @@ inputs:
   footer:
     description: The footer content to be added to the index file
     default: 'Repository <a href="https://github.com/${{ github.repository }}">${{ github.repository }}</a>'
+
 outputs:
   generated:
     description: Whether the index files were generated (an array of paths)
+
 runs:
+  pre: chainguard-phonehome.js
   using: node24
   main: dist/index.js
-  pre: chainguard-phonehome.js

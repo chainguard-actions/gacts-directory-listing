@@ -1,0 +1,71 @@
+name: Test ignore patterns
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create test directory structure
+        run: |
+          mkdir -p /tmp/test-ignore/logs
+          mkdir -p /tmp/test-ignore/data
+          echo "important" > /tmp/test-ignore/important.txt
+          echo "log entry" > /tmp/test-ignore/app.log
+          echo "another log" > /tmp/test-ignore/logs/server.log
+          echo "data file" > /tmp/test-ignore/data/records.csv
+
+      - id: action
+        uses: .
+        with:
+          target: /tmp/test-ignore
+          ignore: |
+            **/index.html
+            **/*.log
+            **/logs/**
+
+      - name: Assert index.html generated in root
+        run: |
+          if [ ! -f "/tmp/test-ignore/index.html" ]; then
+            echo "FAIL: index.html not found in root target directory"
+            exit 1
+          fi
+          echo "PASS: index.html found in root"
+
+      - name: Assert ignored log files not listed in root index.html
+        run: |
+          CONTENT=$(cat /tmp/test-ignore/index.html)
+          echo "Content: $CONTENT"
+          if echo "$CONTENT" | grep -q "app.log"; then
+            echo "FAIL: app.log should be ignored but appears in index.html"
+            exit 1
+          fi
+          echo "PASS: app.log correctly excluded from index.html"
+
+      - name: Assert non-ignored files are listed
+        run: |
+          CONTENT=$(cat /tmp/test-ignore/index.html)
+          echo "Content: $CONTENT"
+          if ! echo "$CONTENT" | grep -q "important.txt"; then
+            echo "FAIL: important.txt should be listed but not found in index.html"
+            exit 1
+          fi
+          echo "PASS: important.txt correctly listed in index.html"
+
+      - name: Assert ignored directory has no index.html
+        run: |
+          if [ -f "/tmp/test-ignore/logs/index.html" ]; then
+            echo "FAIL: logs/index.html should not be generated (directory is ignored)"
+            exit 1
+          fi
+          echo "PASS: logs directory correctly has no index.html"
+
+      - name: Assert non-ignored subdirectory has index.html
+        run: |
+          if [ ! -f "/tmp/test-ignore/data/index.html" ]; then
+            echo "FAIL: data/index.html should be generated"
+            exit 1
+          fi
+          echo "PASS: data/index.html correctly generated"

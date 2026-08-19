@@ -1,0 +1,55 @@
+name: Test default target and custom footer
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create a subdirectory with files for listing
+        run: |
+          mkdir -p /tmp/test-footer/subdir
+          echo "file1" > /tmp/test-footer/file1.txt
+          echo "file2" > /tmp/test-footer/file2.txt
+          echo "nested" > /tmp/test-footer/subdir/nested.txt
+
+      - id: action
+        uses: .
+        with:
+          target: /tmp/test-footer
+          footer: 'Custom Footer Text - Test Suite'
+
+      - name: Assert index.html generated
+        run: |
+          if [ ! -f "/tmp/test-footer/index.html" ]; then
+            echo "FAIL: index.html not found"
+            exit 1
+          fi
+          echo "PASS: index.html found"
+
+      - name: Assert custom footer appears in generated index.html
+        run: |
+          CONTENT=$(cat /tmp/test-footer/index.html)
+          echo "Content snippet: $(echo "$CONTENT" | tail -20)"
+          if ! echo "$CONTENT" | grep -q "Custom Footer Text - Test Suite"; then
+            echo "FAIL: custom footer not found in index.html"
+            exit 1
+          fi
+          echo "PASS: custom footer found in index.html"
+
+      - name: Assert generated output contains paths
+        env:
+          ACTUAL: ${{ steps.action.outputs.generated }}
+        run: |
+          echo "actual: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected generated output to be non-empty"
+            exit 1
+          fi
+          if ! echo "$ACTUAL" | grep -q "index.html"; then
+            echo "FAIL: generated output does not reference index.html files"
+            exit 1
+          fi
+          echo "PASS: generated output is correct"
