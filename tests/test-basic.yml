@@ -7,50 +7,56 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Create test directory structure
+      - name: Create a simple directory structure for testing
         run: |
-          mkdir -p /tmp/test-listing/subdir
-          echo "hello" > /tmp/test-listing/file1.txt
-          echo "world" > /tmp/test-listing/file2.txt
-          echo "nested" > /tmp/test-listing/subdir/nested.txt
+          mkdir -p "$GITHUB_WORKSPACE/test-target/subdir"
+          echo "hello" > "$GITHUB_WORKSPACE/test-target/hello.txt"
+          echo "world" > "$GITHUB_WORKSPACE/test-target/world.txt"
+          echo "nested" > "$GITHUB_WORKSPACE/test-target/subdir/nested.txt"
 
       - id: action
         uses: .
         with:
-          target: /tmp/test-listing
-
-      - name: Assert index.html was generated
-        env:
-          GENERATED: ${{ steps.action.outputs.generated }}
-        run: |
-          echo "generated: $GENERATED"
-          if [ ! -f "/tmp/test-listing/index.html" ]; then
-            echo "FAIL: expected /tmp/test-listing/index.html to exist"
-            exit 1
-          fi
-          echo "PASS: index.html exists"
-
-      - name: Assert index.html contains file references
-        run: |
-          echo "Contents of index.html:"
-          cat /tmp/test-listing/index.html
-          if ! grep -q "file1.txt" /tmp/test-listing/index.html; then
-            echo "FAIL: index.html does not reference file1.txt"
-            exit 1
-          fi
-          if ! grep -q "file2.txt" /tmp/test-listing/index.html; then
-            echo "FAIL: index.html does not reference file2.txt"
-            exit 1
-          fi
-          echo "PASS: index.html contains expected file references"
+          target: test-target
 
       - name: Assert generated output is non-empty
         env:
           GENERATED: ${{ steps.action.outputs.generated }}
         run: |
-          echo "generated output: $GENERATED"
+          echo "generated: $GENERATED"
           if [ -z "$GENERATED" ]; then
-            echo "FAIL: generated output should not be empty"
+            echo "FAIL: expected generated output to be non-empty"
             exit 1
           fi
           echo "PASS: generated output is non-empty"
+
+      - name: Assert index.html was created in target directory
+        run: |
+          if [ ! -f "$GITHUB_WORKSPACE/test-target/index.html" ]; then
+            echo "FAIL: expected index.html in test-target/"
+            exit 1
+          fi
+          echo "PASS: index.html exists in test-target/"
+
+      - name: Assert index.html was created in subdirectory
+        run: |
+          if [ ! -f "$GITHUB_WORKSPACE/test-target/subdir/index.html" ]; then
+            echo "FAIL: expected index.html in test-target/subdir/"
+            exit 1
+          fi
+          echo "PASS: index.html exists in test-target/subdir/"
+
+      - name: Assert index.html contains expected file links
+        run: |
+          content=$(cat "$GITHUB_WORKSPACE/test-target/index.html")
+          echo "index.html content:"
+          echo "$content"
+          if ! echo "$content" | grep -q "hello.txt"; then
+            echo "FAIL: index.html does not contain hello.txt"
+            exit 1
+          fi
+          if ! echo "$content" | grep -q "world.txt"; then
+            echo "FAIL: index.html does not contain world.txt"
+            exit 1
+          fi
+          echo "PASS: index.html contains expected file links"

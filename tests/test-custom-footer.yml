@@ -7,31 +7,43 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Create test directory
+      - name: Create a simple directory structure for testing
         run: |
-          mkdir -p /tmp/test-footer
-          echo "content" > /tmp/test-footer/sample.txt
+          mkdir -p "$GITHUB_WORKSPACE/test-footer"
+          echo "hello" > "$GITHUB_WORKSPACE/test-footer/hello.txt"
 
       - id: action
         uses: .
         with:
-          target: /tmp/test-footer
+          target: test-footer
           footer: 'My Custom Footer Text 12345'
 
-      - name: Assert index.html was generated
+      - name: Assert generated output is non-empty
+        env:
+          GENERATED: ${{ steps.action.outputs.generated }}
         run: |
-          if [ ! -f "/tmp/test-footer/index.html" ]; then
-            echo "FAIL: expected /tmp/test-footer/index.html to exist"
+          echo "generated: $GENERATED"
+          if [ -z "$GENERATED" ]; then
+            echo "FAIL: expected generated output to be non-empty"
             exit 1
           fi
-          echo "PASS: index.html exists"
+          echo "PASS: generated output is non-empty"
 
-      - name: Assert custom footer is present in index.html
+      - name: Assert index.html was created
         run: |
-          echo "Contents of index.html:"
-          cat /tmp/test-footer/index.html
-          if ! grep -q "My Custom Footer Text 12345" /tmp/test-footer/index.html; then
-            echo "FAIL: index.html should contain the custom footer text"
+          if [ ! -f "$GITHUB_WORKSPACE/test-footer/index.html" ]; then
+            echo "FAIL: expected index.html in test-footer/"
             exit 1
           fi
-          echo "PASS: custom footer is present in index.html"
+          echo "PASS: index.html exists in test-footer/"
+
+      - name: Assert custom footer appears in index.html
+        run: |
+          content=$(cat "$GITHUB_WORKSPACE/test-footer/index.html")
+          echo "index.html content:"
+          echo "$content"
+          if ! echo "$content" | grep -q "My Custom Footer Text 12345"; then
+            echo "FAIL: index.html does not contain custom footer text"
+            exit 1
+          fi
+          echo "PASS: custom footer text is present in index.html"

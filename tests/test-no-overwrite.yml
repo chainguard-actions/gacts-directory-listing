@@ -1,0 +1,33 @@
+name: Test no overwrite of existing index.html
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create directory structure with existing index.html
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/test-nooverwrite"
+          echo "file1" > "$GITHUB_WORKSPACE/test-nooverwrite/file1.txt"
+          echo "file2" > "$GITHUB_WORKSPACE/test-nooverwrite/file2.txt"
+          # Create an existing index.html that should NOT be overwritten
+          echo "<html><body>EXISTING CONTENT - DO NOT OVERWRITE</body></html>" > "$GITHUB_WORKSPACE/test-nooverwrite/index.html"
+
+      - id: action
+        uses: .
+        with:
+          target: test-nooverwrite
+          overwrite: 'false'
+
+      - name: Assert existing index.html was not overwritten
+        run: |
+          content=$(cat "$GITHUB_WORKSPACE/test-nooverwrite/index.html")
+          echo "index.html content:"
+          echo "$content"
+          if ! echo "$content" | grep -q "EXISTING CONTENT - DO NOT OVERWRITE"; then
+            echo "FAIL: existing index.html was overwritten when overwrite=false"
+            exit 1
+          fi
+          echo "PASS: existing index.html was preserved"

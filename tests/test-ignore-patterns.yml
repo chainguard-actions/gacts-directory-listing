@@ -7,51 +7,64 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Create test directory structure with files to ignore
+      - name: Create directory structure with files to ignore
         run: |
-          mkdir -p /tmp/test-ignore/node_modules/some-pkg
-          mkdir -p /tmp/test-ignore/logs
-          echo "keep me" > /tmp/test-ignore/keep.txt
-          echo "ignore me" > /tmp/test-ignore/debug.log
-          echo "pkg file" > /tmp/test-ignore/node_modules/some-pkg/index.js
-          echo "log file" > /tmp/test-ignore/logs/app.log
+          mkdir -p "$GITHUB_WORKSPACE/test-ignore/logs"
+          mkdir -p "$GITHUB_WORKSPACE/test-ignore/data"
+          echo "keep me" > "$GITHUB_WORKSPACE/test-ignore/keep.txt"
+          echo "ignore me" > "$GITHUB_WORKSPACE/test-ignore/ignore.log"
+          echo "also ignore" > "$GITHUB_WORKSPACE/test-ignore/logs/app.log"
+          echo "keep nested" > "$GITHUB_WORKSPACE/test-ignore/data/data.csv"
 
       - id: action
         uses: .
         with:
-          target: /tmp/test-ignore
-          ignore: "node_modules/**,**/*.log"
+          target: test-ignore
+          ignore: "**/*.log,logs/**"
 
-      - name: Assert index.html was generated
+      - name: Assert generated output is non-empty
+        env:
+          GENERATED: ${{ steps.action.outputs.generated }}
         run: |
-          if [ ! -f "/tmp/test-ignore/index.html" ]; then
-            echo "FAIL: expected /tmp/test-ignore/index.html to exist"
+          echo "generated: $GENERATED"
+          if [ -z "$GENERATED" ]; then
+            echo "FAIL: expected generated output to be non-empty"
             exit 1
           fi
-          echo "PASS: index.html exists"
+          echo "PASS: generated output is non-empty"
 
-      - name: Assert ignored files are not listed
+      - name: Assert index.html was created in target directory
         run: |
-          echo "Contents of index.html:"
-          cat /tmp/test-ignore/index.html
-          if grep -q "debug.log" /tmp/test-ignore/index.html; then
-            echo "FAIL: index.html should not reference debug.log (matched by **/*.log)"
+          if [ ! -f "$GITHUB_WORKSPACE/test-ignore/index.html" ]; then
+            echo "FAIL: expected index.html in test-ignore/"
             exit 1
           fi
-          echo "PASS: ignored files are not listed"
+          echo "PASS: index.html exists in test-ignore/"
 
-      - name: Assert kept files are listed
+      - name: Assert ignored .log file is not listed in index.html
         run: |
-          if ! grep -q "keep.txt" /tmp/test-ignore/index.html; then
-            echo "FAIL: index.html should reference keep.txt"
+          content=$(cat "$GITHUB_WORKSPACE/test-ignore/index.html")
+          echo "index.html content:"
+          echo "$content"
+          if echo "$content" | grep -q "ignore.log"; then
+            echo "FAIL: index.html should not contain ignored file ignore.log"
             exit 1
           fi
-          echo "PASS: non-ignored files are listed"
+          echo "PASS: ignored .log file is not listed"
 
-      - name: Assert node_modules directory is not listed
+      - name: Assert kept file is listed in index.html
         run: |
-          if grep -q "node_modules" /tmp/test-ignore/index.html; then
-            echo "FAIL: index.html should not reference node_modules (ignored)"
+          content=$(cat "$GITHUB_WORKSPACE/test-ignore/index.html")
+          if ! echo "$content" | grep -q "keep.txt"; then
+            echo "FAIL: index.html should contain keep.txt"
             exit 1
           fi
-          echo "PASS: node_modules directory is not listed"
+          echo "PASS: keep.txt is listed in index.html"
+
+      - name: Assert ignored logs directory has no index.html
+        run: |
+          if [ -f "$GITHUB_WORKSPACE/test-ignore/logs/index.html" ]; then
+            echo "FAIL: index.html should not be generated for ignored logs/ directory"
+            exit 1
+          fi
+          echo "PASS: no index.html in ignored logs/ directory"
