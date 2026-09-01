@@ -14,6 +14,7 @@ Hardened by [Chainguard](https://www.chainguard.dev) from the upstream action at
 | v1.0.3 | [`v1.0.3`](https://github.com/chainguard-actions/gacts-directory-listing/tree/v1.0.3) | [`b7ce806`](https://github.com/gacts/directory-listing/commit/b7ce8063c2a35a7c2c910847a674fafc48ea0512) |
 | v1.0.4 | [`v1.0.4`](https://github.com/chainguard-actions/gacts-directory-listing/tree/v1.0.4) | [`382b343`](https://github.com/gacts/directory-listing/commit/382b3439bf3a5787b20350780a0cc18553a47acd) |
 | v1.0.5 | [`v1.0.5`](https://github.com/chainguard-actions/gacts-directory-listing/tree/v1.0.5) | [`8ba8471`](https://github.com/gacts/directory-listing/commit/8ba847131ba9eab225ceb7f528e04504a5120aa4) |
+| v1.0.6 | [`v1.0.6`](https://github.com/chainguard-actions/gacts-directory-listing/tree/v1.0.6) | [`dbce3ff`](https://github.com/gacts/directory-listing/commit/dbce3ff489d0e8689b0c45c6a63fe28b2a23ca66) |
 
 ## Privacy
 
