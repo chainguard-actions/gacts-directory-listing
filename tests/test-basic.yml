@@ -1,0 +1,62 @@
+name: Test basic directory listing
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create test directory structure
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/tests/fixtures/basic-dir/subdir"
+          echo "hello" > "$GITHUB_WORKSPACE/tests/fixtures/basic-dir/file1.txt"
+          echo "world" > "$GITHUB_WORKSPACE/tests/fixtures/basic-dir/file2.txt"
+          echo "nested" > "$GITHUB_WORKSPACE/tests/fixtures/basic-dir/subdir/nested.txt"
+
+      - id: action
+        uses: .
+        with:
+          target: tests/fixtures/basic-dir
+          overwrite: 'true'
+
+      - name: Assert generated output is non-empty
+        env:
+          GENERATED: ${{ steps.action.outputs.generated }}
+        run: |
+          echo "generated: $GENERATED"
+          if [ -z "$GENERATED" ]; then
+            echo "FAIL: expected generated output to be non-empty"
+            exit 1
+          fi
+          echo "PASS: generated output is non-empty"
+
+      - name: Assert index.html was created in target directory
+        run: |
+          if [ ! -f "$GITHUB_WORKSPACE/tests/fixtures/basic-dir/index.html" ]; then
+            echo "FAIL: index.html not found in target directory"
+            exit 1
+          fi
+          echo "PASS: index.html exists"
+
+      - name: Assert index.html contains expected files
+        run: |
+          CONTENT=$(cat "$GITHUB_WORKSPACE/tests/fixtures/basic-dir/index.html")
+          echo "content: $CONTENT"
+          if ! echo "$CONTENT" | grep -q "file1.txt"; then
+            echo "FAIL: index.html does not list file1.txt"
+            exit 1
+          fi
+          if ! echo "$CONTENT" | grep -q "file2.txt"; then
+            echo "FAIL: index.html does not list file2.txt"
+            exit 1
+          fi
+          echo "PASS: index.html lists expected files"
+
+      - name: Assert index.html was created in subdirectory
+        run: |
+          if [ ! -f "$GITHUB_WORKSPACE/tests/fixtures/basic-dir/subdir/index.html" ]; then
+            echo "FAIL: index.html not found in subdir"
+            exit 1
+          fi
+          echo "PASS: subdir index.html exists"

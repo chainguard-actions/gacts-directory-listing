@@ -1,0 +1,60 @@
+name: Test ignore patterns
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create test directory structure
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/tests/fixtures/ignore-dir/logs"
+          mkdir -p "$GITHUB_WORKSPACE/tests/fixtures/ignore-dir/data"
+          echo "important" > "$GITHUB_WORKSPACE/tests/fixtures/ignore-dir/important.txt"
+          echo "log entry" > "$GITHUB_WORKSPACE/tests/fixtures/ignore-dir/logs/app.log"
+          echo "data" > "$GITHUB_WORKSPACE/tests/fixtures/ignore-dir/data/record.csv"
+
+      - id: action
+        uses: .
+        with:
+          target: tests/fixtures/ignore-dir
+          ignore: |
+            **/index.html
+            tests/fixtures/ignore-dir/logs/**
+          overwrite: 'true'
+
+      - name: Assert generated output is set
+        env:
+          GENERATED: ${{ steps.action.outputs.generated }}
+        run: |
+          echo "generated: $GENERATED"
+          if [ -z "$GENERATED" ]; then
+            echo "FAIL: expected generated output to be non-empty"
+            exit 1
+          fi
+          echo "PASS: generated output is set"
+
+      - name: Assert index.html was created in root target
+        run: |
+          if [ ! -f "$GITHUB_WORKSPACE/tests/fixtures/ignore-dir/index.html" ]; then
+            echo "FAIL: index.html not found in target directory"
+            exit 1
+          fi
+          echo "PASS: root index.html exists"
+
+      - name: Assert ignored directory has no index.html
+        run: |
+          if [ -f "$GITHUB_WORKSPACE/tests/fixtures/ignore-dir/logs/index.html" ]; then
+            echo "FAIL: index.html should not have been created in ignored logs directory"
+            exit 1
+          fi
+          echo "PASS: logs directory correctly has no index.html"
+
+      - name: Assert non-ignored directory has index.html
+        run: |
+          if [ ! -f "$GITHUB_WORKSPACE/tests/fixtures/ignore-dir/data/index.html" ]; then
+            echo "FAIL: index.html should have been created in data directory"
+            exit 1
+          fi
+          echo "PASS: data directory has index.html"

@@ -1,0 +1,52 @@
+name: Test show hidden files
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create test directory with hidden files
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/tests/fixtures/hidden-dir"
+          echo "visible" > "$GITHUB_WORKSPACE/tests/fixtures/hidden-dir/visible.txt"
+          echo "hidden" > "$GITHUB_WORKSPACE/tests/fixtures/hidden-dir/.hidden-file"
+          mkdir -p "$GITHUB_WORKSPACE/tests/fixtures/hidden-dir/.hidden-subdir"
+          echo "nested hidden" > "$GITHUB_WORKSPACE/tests/fixtures/hidden-dir/.hidden-subdir/file.txt"
+
+      - id: action-with-hidden
+        uses: .
+        with:
+          target: tests/fixtures/hidden-dir
+          show-hidden: 'true'
+          overwrite: 'true'
+
+      - name: Assert generated output is set
+        env:
+          GENERATED: ${{ steps.action-with-hidden.outputs.generated }}
+        run: |
+          echo "generated: $GENERATED"
+          if [ -z "$GENERATED" ]; then
+            echo "FAIL: expected generated output to be non-empty"
+            exit 1
+          fi
+          echo "PASS: generated output is set"
+
+      - name: Assert index.html was created
+        run: |
+          if [ ! -f "$GITHUB_WORKSPACE/tests/fixtures/hidden-dir/index.html" ]; then
+            echo "FAIL: index.html not found in target directory"
+            exit 1
+          fi
+          echo "PASS: index.html exists"
+
+      - name: Assert hidden file appears in index.html
+        run: |
+          CONTENT=$(cat "$GITHUB_WORKSPACE/tests/fixtures/hidden-dir/index.html")
+          echo "content: $CONTENT"
+          if ! echo "$CONTENT" | grep -q ".hidden-file"; then
+            echo "FAIL: hidden file not listed in index.html when show-hidden=true"
+            exit 1
+          fi
+          echo "PASS: hidden file is listed in index.html"

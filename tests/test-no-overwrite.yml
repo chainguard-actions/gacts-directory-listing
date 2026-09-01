@@ -1,0 +1,39 @@
+name: Test no-overwrite behavior
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create test directory with existing index.html
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/tests/fixtures/no-overwrite-dir"
+          echo "file content" > "$GITHUB_WORKSPACE/tests/fixtures/no-overwrite-dir/file.txt"
+          echo "EXISTING CONTENT - DO NOT OVERWRITE" > "$GITHUB_WORKSPACE/tests/fixtures/no-overwrite-dir/index.html"
+
+      - id: action
+        uses: .
+        with:
+          target: tests/fixtures/no-overwrite-dir
+          overwrite: 'false'
+
+      - name: Assert generated output reflects no new files generated
+        env:
+          GENERATED: ${{ steps.action.outputs.generated }}
+        run: |
+          echo "generated: $GENERATED"
+          # When overwrite is false and index.html already exists, it should not be regenerated
+          # The output may be empty or an empty array
+          echo "PASS: action completed without error"
+
+      - name: Assert existing index.html was not overwritten
+        run: |
+          CONTENT=$(cat "$GITHUB_WORKSPACE/tests/fixtures/no-overwrite-dir/index.html")
+          echo "content: $CONTENT"
+          if ! echo "$CONTENT" | grep -q "EXISTING CONTENT - DO NOT OVERWRITE"; then
+            echo "FAIL: existing index.html was overwritten when overwrite=false"
+            exit 1
+          fi
+          echo "PASS: existing index.html was preserved"

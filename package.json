@@ -1,0 +1,49 @@
+{
+  "name": "directory-listing",
+  "description": "GitHub Actions to generate index.html files for directory listing",
+  "type": "module",
+  "homepage": "https://github.com/gacts/directory-listing#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gacts/directory-listing.git"
+  },
+  "bugs": {
+    "url": "https://github.com/gacts/directory-listing/issues"
+  },
+  "keywords": [
+    "actions",
+    "github",
+    "listing",
+    "index.html"
+  ],
+  "scripts": {
+    "build": "rollup --config rollup.config.js",
+    "fmt": "prettier --write ./src ./*.js && eslint ./src/**/*.js --fix",
+    "lint": "eslint ./src/**/*.js"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@actions/core": "^3.0.1",
+    "glob": "^13.0.6"
+  },
+  "devDependencies": {
+    "@eslint/compat": "^2.1.0",
+    "@rollup/plugin-commonjs": "^29.0.3",
+    "@rollup/plugin-node-resolve": "^16.0.3",
+    "@rollup/plugin-terser": "^1.0.0",
+    "@types/node": "^26.4.0",
+    "eslint": "^9.39.4",
+    "eslint-plugin-import": "^2.32.0",
+    "prettier": "^3.9.6",
+    "rollup": "^4.63.1"
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-linux-x64-gnu": "*"
+  },
+  "engines": {
+    "node": "24"
+  },
+  "volta": {
+    "node": "24"
+  }
+}

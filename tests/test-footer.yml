@@ -1,0 +1,49 @@
+name: Test custom footer
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create test directory
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/tests/fixtures/footer-dir"
+          echo "content" > "$GITHUB_WORKSPACE/tests/fixtures/footer-dir/sample.txt"
+
+      - id: action
+        uses: .
+        with:
+          target: tests/fixtures/footer-dir
+          footer: 'Custom Footer Text - Test Suite'
+          overwrite: 'true'
+
+      - name: Assert generated output is set
+        env:
+          GENERATED: ${{ steps.action.outputs.generated }}
+        run: |
+          echo "generated: $GENERATED"
+          if [ -z "$GENERATED" ]; then
+            echo "FAIL: expected generated output to be non-empty"
+            exit 1
+          fi
+          echo "PASS: generated output is set"
+
+      - name: Assert index.html was created
+        run: |
+          if [ ! -f "$GITHUB_WORKSPACE/tests/fixtures/footer-dir/index.html" ]; then
+            echo "FAIL: index.html not found in target directory"
+            exit 1
+          fi
+          echo "PASS: index.html exists"
+
+      - name: Assert custom footer appears in index.html
+        run: |
+          CONTENT=$(cat "$GITHUB_WORKSPACE/tests/fixtures/footer-dir/index.html")
+          echo "content: $CONTENT"
+          if ! echo "$CONTENT" | grep -q "Custom Footer Text - Test Suite"; then
+            echo "FAIL: custom footer not found in index.html"
+            exit 1
+          fi
+          echo "PASS: custom footer is present in index.html"
