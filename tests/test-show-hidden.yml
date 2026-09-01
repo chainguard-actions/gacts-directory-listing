@@ -1,0 +1,55 @@
+name: Test show hidden files
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create target directory with hidden and visible files
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/test-hidden"
+          echo "visible" > "$GITHUB_WORKSPACE/test-hidden/visible.txt"
+          echo "hidden" > "$GITHUB_WORKSPACE/test-hidden/.hidden-file"
+          echo "hidden env" > "$GITHUB_WORKSPACE/test-hidden/.env"
+
+      - id: action
+        uses: .
+        with:
+          target: test-hidden
+          show-hidden: 'true'
+
+      - name: Assert generated output is non-empty
+        env:
+          GENERATED: ${{ steps.action.outputs.generated }}
+        run: |
+          echo "generated: $GENERATED"
+          if [ -z "$GENERATED" ]; then
+            echo "FAIL: expected generated output to be non-empty"
+            exit 1
+          fi
+          echo "PASS: generated output is non-empty"
+
+      - name: Assert index.html was created
+        run: |
+          if [ ! -f "$GITHUB_WORKSPACE/test-hidden/index.html" ]; then
+            echo "FAIL: index.html was not created"
+            exit 1
+          fi
+          echo "PASS: index.html exists"
+
+      - name: Assert index.html contains hidden files
+        run: |
+          CONTENT=$(cat "$GITHUB_WORKSPACE/test-hidden/index.html")
+          echo "index.html content:"
+          echo "$CONTENT"
+          if ! echo "$CONTENT" | grep -q ".hidden-file"; then
+            echo "FAIL: index.html does not contain .hidden-file (show-hidden=true)"
+            exit 1
+          fi
+          if ! echo "$CONTENT" | grep -q ".env"; then
+            echo "FAIL: index.html does not contain .env (show-hidden=true)"
+            exit 1
+          fi
+          echo "PASS: index.html contains hidden files as expected"

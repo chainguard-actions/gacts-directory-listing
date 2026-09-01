@@ -1,0 +1,32 @@
+name: Test no-overwrite (default behavior)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create target directory with pre-existing index.html
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/test-no-overwrite"
+          echo "file1.txt content" > "$GITHUB_WORKSPACE/test-no-overwrite/file1.txt"
+          # Create a pre-existing index.html with custom content
+          echo "<html><body>ORIGINAL CONTENT - KEEP ME</body></html>" > "$GITHUB_WORKSPACE/test-no-overwrite/index.html"
+
+      - id: action
+        uses: .
+        with:
+          target: test-no-overwrite
+          overwrite: 'false'
+
+      - name: Assert index.html was NOT overwritten (still has original content)
+        run: |
+          CONTENT=$(cat "$GITHUB_WORKSPACE/test-no-overwrite/index.html")
+          echo "index.html content:"
+          echo "$CONTENT"
+          if ! echo "$CONTENT" | grep -q "ORIGINAL CONTENT - KEEP ME"; then
+            echo "FAIL: index.html was overwritten when overwrite=false"
+            exit 1
+          fi
+          echo "PASS: index.html was not overwritten as expected"

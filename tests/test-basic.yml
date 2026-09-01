@@ -1,0 +1,62 @@
+name: Test basic directory listing
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create target directory with files
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/test-listing/subdir"
+          echo "hello" > "$GITHUB_WORKSPACE/test-listing/hello.txt"
+          echo "world" > "$GITHUB_WORKSPACE/test-listing/world.txt"
+          echo "nested" > "$GITHUB_WORKSPACE/test-listing/subdir/nested.txt"
+
+      - id: action
+        uses: .
+        with:
+          target: test-listing
+
+      - name: Assert generated output is non-empty
+        env:
+          GENERATED: ${{ steps.action.outputs.generated }}
+        run: |
+          echo "generated: $GENERATED"
+          if [ -z "$GENERATED" ]; then
+            echo "FAIL: expected generated output to be non-empty"
+            exit 1
+          fi
+          echo "PASS: generated output is non-empty"
+
+      - name: Assert index.html was created in target directory
+        run: |
+          if [ ! -f "$GITHUB_WORKSPACE/test-listing/index.html" ]; then
+            echo "FAIL: index.html was not created in target directory"
+            exit 1
+          fi
+          echo "PASS: index.html exists in target directory"
+
+      - name: Assert index.html contains expected files
+        run: |
+          CONTENT=$(cat "$GITHUB_WORKSPACE/test-listing/index.html")
+          echo "index.html content:"
+          echo "$CONTENT"
+          if ! echo "$CONTENT" | grep -q "hello.txt"; then
+            echo "FAIL: index.html does not contain hello.txt"
+            exit 1
+          fi
+          if ! echo "$CONTENT" | grep -q "world.txt"; then
+            echo "FAIL: index.html does not contain world.txt"
+            exit 1
+          fi
+          echo "PASS: index.html contains expected files"
+
+      - name: Assert index.html was created in subdirectory
+        run: |
+          if [ ! -f "$GITHUB_WORKSPACE/test-listing/subdir/index.html" ]; then
+            echo "FAIL: index.html was not created in subdir"
+            exit 1
+          fi
+          echo "PASS: index.html exists in subdir"

@@ -1,0 +1,67 @@
+name: Test overwrite existing index.html
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create target directory with pre-existing index.html
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/test-overwrite"
+          echo "file1.txt content" > "$GITHUB_WORKSPACE/test-overwrite/file1.txt"
+          echo "file2.txt content" > "$GITHUB_WORKSPACE/test-overwrite/file2.txt"
+          # Create a pre-existing index.html with custom content
+          echo "<html><body>ORIGINAL CONTENT - DO NOT OVERWRITE</body></html>" > "$GITHUB_WORKSPACE/test-overwrite/index.html"
+
+      - name: Verify pre-existing index.html has original content
+        run: |
+          CONTENT=$(cat "$GITHUB_WORKSPACE/test-overwrite/index.html")
+          echo "Pre-existing content: $CONTENT"
+          if ! echo "$CONTENT" | grep -q "ORIGINAL CONTENT"; then
+            echo "FAIL: pre-existing index.html does not have expected original content"
+            exit 1
+          fi
+          echo "PASS: pre-existing index.html has original content"
+
+      - id: action
+        uses: .
+        with:
+          target: test-overwrite
+          overwrite: 'true'
+
+      - name: Assert generated output is non-empty
+        env:
+          GENERATED: ${{ steps.action.outputs.generated }}
+        run: |
+          echo "generated: $GENERATED"
+          if [ -z "$GENERATED" ]; then
+            echo "FAIL: expected generated output to be non-empty"
+            exit 1
+          fi
+          echo "PASS: generated output is non-empty"
+
+      - name: Assert index.html was overwritten (no longer has original content)
+        run: |
+          CONTENT=$(cat "$GITHUB_WORKSPACE/test-overwrite/index.html")
+          echo "New index.html content:"
+          echo "$CONTENT"
+          if echo "$CONTENT" | grep -q "ORIGINAL CONTENT - DO NOT OVERWRITE"; then
+            echo "FAIL: index.html was not overwritten (still has original content)"
+            exit 1
+          fi
+          echo "PASS: index.html was overwritten"
+
+      - name: Assert overwritten index.html contains expected files
+        run: |
+          CONTENT=$(cat "$GITHUB_WORKSPACE/test-overwrite/index.html")
+          if ! echo "$CONTENT" | grep -q "file1.txt"; then
+            echo "FAIL: overwritten index.html does not contain file1.txt"
+            exit 1
+          fi
+          if ! echo "$CONTENT" | grep -q "file2.txt"; then
+            echo "FAIL: overwritten index.html does not contain file2.txt"
+            exit 1
+          fi
+          echo "PASS: overwritten index.html contains expected files"

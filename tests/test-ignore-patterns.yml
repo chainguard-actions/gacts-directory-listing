@@ -1,0 +1,70 @@
+name: Test ignore patterns
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create target directory with files and ignored directory
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/test-ignore/node_modules/some-pkg"
+          mkdir -p "$GITHUB_WORKSPACE/test-ignore/src"
+          echo "app code" > "$GITHUB_WORKSPACE/test-ignore/src/app.js"
+          echo "readme" > "$GITHUB_WORKSPACE/test-ignore/README.md"
+          echo "pkg" > "$GITHUB_WORKSPACE/test-ignore/node_modules/some-pkg/index.js"
+
+      - id: action
+        uses: .
+        with:
+          target: test-ignore
+          ignore: |
+            **/index.html
+            **/node_modules/**
+
+      - name: Assert generated output is non-empty
+        env:
+          GENERATED: ${{ steps.action.outputs.generated }}
+        run: |
+          echo "generated: $GENERATED"
+          if [ -z "$GENERATED" ]; then
+            echo "FAIL: expected generated output to be non-empty"
+            exit 1
+          fi
+          echo "PASS: generated output is non-empty"
+
+      - name: Assert index.html was created in root target directory
+        run: |
+          if [ ! -f "$GITHUB_WORKSPACE/test-ignore/index.html" ]; then
+            echo "FAIL: index.html was not created in target directory"
+            exit 1
+          fi
+          echo "PASS: index.html exists in target directory"
+
+      - name: Assert index.html was created in src directory
+        run: |
+          if [ ! -f "$GITHUB_WORKSPACE/test-ignore/src/index.html" ]; then
+            echo "FAIL: index.html was not created in src directory"
+            exit 1
+          fi
+          echo "PASS: index.html exists in src directory"
+
+      - name: Assert index.html was NOT created in node_modules (ignored)
+        run: |
+          if [ -f "$GITHUB_WORKSPACE/test-ignore/node_modules/index.html" ]; then
+            echo "FAIL: index.html should not have been created in node_modules (ignored)"
+            exit 1
+          fi
+          echo "PASS: index.html was not created in node_modules as expected"
+
+      - name: Assert root index.html does not list node_modules contents
+        run: |
+          CONTENT=$(cat "$GITHUB_WORKSPACE/test-ignore/index.html")
+          echo "index.html content:"
+          echo "$CONTENT"
+          if echo "$CONTENT" | grep -q "some-pkg"; then
+            echo "FAIL: index.html should not list contents of ignored node_modules"
+            exit 1
+          fi
+          echo "PASS: index.html does not list ignored node_modules contents"
