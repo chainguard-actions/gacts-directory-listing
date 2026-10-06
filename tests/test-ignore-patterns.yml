@@ -1,0 +1,72 @@
+name: Test ignore patterns
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create test directory structure
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/test-ignore/logs"
+          mkdir -p "$GITHUB_WORKSPACE/test-ignore/data"
+          echo "keep me" > "$GITHUB_WORKSPACE/test-ignore/keep.txt"
+          echo "ignore me" > "$GITHUB_WORKSPACE/test-ignore/skip.log"
+          echo "log entry" > "$GITHUB_WORKSPACE/test-ignore/logs/app.log"
+          echo "data file" > "$GITHUB_WORKSPACE/test-ignore/data/data.csv"
+
+      - id: action
+        uses: .
+        with:
+          target: test-ignore
+          ignore: |
+            **/index.html
+            **/*.log
+            logs/**
+
+      - name: Assert generated output is non-empty
+        env:
+          GENERATED: ${{ steps.action.outputs.generated }}
+        run: |
+          echo "generated: $GENERATED"
+          if [ -z "$GENERATED" ]; then
+            echo "FAIL: expected generated output to be non-empty"
+            exit 1
+          fi
+          echo "PASS: generated output is non-empty"
+
+      - name: Assert index.html was created in target root
+        run: |
+          if [ ! -f "$GITHUB_WORKSPACE/test-ignore/index.html" ]; then
+            echo "FAIL: expected index.html in test-ignore/"
+            exit 1
+          fi
+          echo "PASS: index.html exists in test-ignore/"
+
+      - name: Assert ignored .log file is not listed in index
+        run: |
+          CONTENT=$(cat "$GITHUB_WORKSPACE/test-ignore/index.html")
+          echo "index.html content: $CONTENT"
+          if echo "$CONTENT" | grep -q "skip.log"; then
+            echo "FAIL: index.html should not reference skip.log (ignored by **/*.log)"
+            exit 1
+          fi
+          echo "PASS: skip.log is not listed in index.html"
+
+      - name: Assert kept file is listed in index
+        run: |
+          CONTENT=$(cat "$GITHUB_WORKSPACE/test-ignore/index.html")
+          if ! echo "$CONTENT" | grep -q "keep.txt"; then
+            echo "FAIL: index.html should reference keep.txt"
+            exit 1
+          fi
+          echo "PASS: keep.txt is listed in index.html"
+
+      - name: Assert ignored directory has no index.html
+        run: |
+          if [ -f "$GITHUB_WORKSPACE/test-ignore/logs/index.html" ]; then
+            echo "FAIL: logs/ directory should not have index.html (ignored by logs/**)"
+            exit 1
+          fi
+          echo "PASS: logs/ directory has no index.html as expected"

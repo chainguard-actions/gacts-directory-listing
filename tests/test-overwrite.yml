@@ -1,4 +1,4 @@
-name: Test overwrite option
+name: Test overwrite existing index.html
 on:
   workflow_dispatch:
 jobs:
@@ -9,61 +9,55 @@ jobs:
 
       - name: Create test directory with existing index.html
         run: |
-          mkdir -p /tmp/test-overwrite
-          echo "file1.txt content" > /tmp/test-overwrite/file1.txt
-          echo "ORIGINAL CONTENT - DO NOT OVERWRITE" > /tmp/test-overwrite/index.html
+          mkdir -p "$GITHUB_WORKSPACE/test-overwrite"
+          echo "file content" > "$GITHUB_WORKSPACE/test-overwrite/file.txt"
+          echo "ORIGINAL CONTENT - DO NOT OVERWRITE" > "$GITHUB_WORKSPACE/test-overwrite/index.html"
 
-      - name: Run action with overwrite false (default)
+      - name: Run action without overwrite (default false)
         id: action-no-overwrite
         uses: .
         with:
-          target: /tmp/test-overwrite
+          target: test-overwrite
           overwrite: 'false'
 
       - name: Assert existing index.html was NOT overwritten
         run: |
-          CONTENT=$(cat /tmp/test-overwrite/index.html)
-          echo "content: $CONTENT"
+          CONTENT=$(cat "$GITHUB_WORKSPACE/test-overwrite/index.html")
+          echo "index.html content: $CONTENT"
           if ! echo "$CONTENT" | grep -q "ORIGINAL CONTENT"; then
-            echo "FAIL: index.html should not have been overwritten"
+            echo "FAIL: existing index.html should not be overwritten when overwrite=false"
             exit 1
           fi
-          echo "PASS: original index.html preserved"
+          echo "PASS: existing index.html was preserved"
 
-      - name: Create fresh test directory for overwrite=true test
-        run: |
-          mkdir -p /tmp/test-overwrite2
-          echo "file2.txt content" > /tmp/test-overwrite2/file2.txt
-          echo "OLD CONTENT" > /tmp/test-overwrite2/index.html
-
-      - name: Run action with overwrite true
+      - name: Run action with overwrite=true
         id: action-overwrite
         uses: .
         with:
-          target: /tmp/test-overwrite2
+          target: test-overwrite
           overwrite: 'true'
 
-      - name: Assert generated output is set for overwrite run
+      - name: Assert generated output is non-empty after overwrite
         env:
-          ACTUAL: ${{ steps.action-overwrite.outputs.generated }}
+          GENERATED: ${{ steps.action-overwrite.outputs.generated }}
         run: |
-          echo "actual: $ACTUAL"
-          if [ -z "$ACTUAL" ]; then
-            echo "FAIL: expected 'generated' output to be non-empty"
+          echo "generated: $GENERATED"
+          if [ -z "$GENERATED" ]; then
+            echo "FAIL: expected generated output to be non-empty"
             exit 1
           fi
-          echo "PASS"
+          echo "PASS: generated output is non-empty"
 
-      - name: Assert index.html was overwritten with new content
+      - name: Assert index.html was overwritten
         run: |
-          CONTENT=$(cat /tmp/test-overwrite2/index.html)
-          echo "content: $CONTENT"
-          if echo "$CONTENT" | grep -q "OLD CONTENT"; then
-            echo "FAIL: index.html should have been overwritten"
+          CONTENT=$(cat "$GITHUB_WORKSPACE/test-overwrite/index.html")
+          echo "index.html content: $CONTENT"
+          if echo "$CONTENT" | grep -q "ORIGINAL CONTENT - DO NOT OVERWRITE"; then
+            echo "FAIL: index.html should have been overwritten when overwrite=true"
             exit 1
           fi
-          if ! grep -q "file2.txt" /tmp/test-overwrite2/index.html; then
-            echo "FAIL: new index.html should contain 'file2.txt'"
+          if ! echo "$CONTENT" | grep -q "file.txt"; then
+            echo "FAIL: new index.html should reference file.txt"
             exit 1
           fi
           echo "PASS: index.html was overwritten with new content"

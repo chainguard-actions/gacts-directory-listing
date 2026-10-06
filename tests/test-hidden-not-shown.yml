@@ -1,4 +1,4 @@
-name: Test show hidden files
+name: Test hidden files not shown by default
 on:
   workflow_dispatch:
 jobs:
@@ -9,17 +9,15 @@ jobs:
 
       - name: Create test directory structure with hidden files
         run: |
-          mkdir -p "$GITHUB_WORKSPACE/test-hidden"
-          echo "visible" > "$GITHUB_WORKSPACE/test-hidden/visible.txt"
-          echo "hidden" > "$GITHUB_WORKSPACE/test-hidden/.hidden-file"
-          mkdir -p "$GITHUB_WORKSPACE/test-hidden/.hidden-dir"
-          echo "inside hidden dir" > "$GITHUB_WORKSPACE/test-hidden/.hidden-dir/file.txt"
+          mkdir -p "$GITHUB_WORKSPACE/test-no-hidden"
+          echo "visible" > "$GITHUB_WORKSPACE/test-no-hidden/visible.txt"
+          echo "hidden" > "$GITHUB_WORKSPACE/test-no-hidden/.hidden-file"
 
       - id: action
         uses: .
         with:
-          target: test-hidden
-          show-hidden: 'true'
+          target: test-no-hidden
+          show-hidden: 'false'
 
       - name: Assert generated output is non-empty
         env:
@@ -34,25 +32,25 @@ jobs:
 
       - name: Assert index.html was created
         run: |
-          if [ ! -f "$GITHUB_WORKSPACE/test-hidden/index.html" ]; then
-            echo "FAIL: expected index.html in test-hidden/"
+          if [ ! -f "$GITHUB_WORKSPACE/test-no-hidden/index.html" ]; then
+            echo "FAIL: expected index.html in test-no-hidden/"
             exit 1
           fi
           echo "PASS: index.html exists"
 
-      - name: Assert hidden file is listed in index
+      - name: Assert hidden file is NOT listed in index
         run: |
-          CONTENT=$(cat "$GITHUB_WORKSPACE/test-hidden/index.html")
+          CONTENT=$(cat "$GITHUB_WORKSPACE/test-no-hidden/index.html")
           echo "index.html content: $CONTENT"
-          if ! echo "$CONTENT" | grep -q ".hidden-file"; then
-            echo "FAIL: index.html should list .hidden-file when show-hidden=true"
+          if echo "$CONTENT" | grep -q '\.hidden-file'; then
+            echo "FAIL: index.html should NOT list .hidden-file when show-hidden=false"
             exit 1
           fi
-          echo "PASS: .hidden-file is listed in index.html"
+          echo "PASS: .hidden-file is not listed in index.html"
 
-      - name: Assert visible file is also listed
+      - name: Assert visible file is listed
         run: |
-          CONTENT=$(cat "$GITHUB_WORKSPACE/test-hidden/index.html")
+          CONTENT=$(cat "$GITHUB_WORKSPACE/test-no-hidden/index.html")
           if ! echo "$CONTENT" | grep -q "visible.txt"; then
             echo "FAIL: index.html should list visible.txt"
             exit 1
